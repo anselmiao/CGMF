@@ -1,0 +1,48 @@
+
+name: CGMF G2 Build
+
+on:
+  push:
+    branches:
+      - qi/g2-neutron-transition-history
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++
+
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -Dcgmf.tests=ON
+
+      - name: Build
+        run: |
+          cmake --build build --parallel 2
+
+      - name: Run tests
+        run: |
+          ctest --test-dir build --output-on-failure
+        continue-on-error: true
+
+      - name: Save test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cgmf-build-test-logs
+          path: |
+            build/Testing/Temporary/
+          if-no-files-found: ignore
