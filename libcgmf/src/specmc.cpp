@@ -1082,7 +1082,7 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
       MCPoint daughter = neutronDaughters[i];
       const int parentN = parent.getN();
       const int daughterN = daughter.getN();
-      if (parentN < 0 || daughterN < 0 || parentN > MAX_COMPOUND || daughterN > MAX_COMPOUND) {
+      if (parentN < 0 || daughterN < 0 || parentN >= MAX_COMPOUND || daughterN >= MAX_COMPOUND) {
         cgmTerminateCode("[G2 sidecar] invalid parent/daughter nucleus index");
         return;
       }

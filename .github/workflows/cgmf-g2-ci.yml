@@ -38,6 +38,18 @@ jobs:
           ctest --test-dir build --output-on-failure
         continue-on-error: false
 
+      - name: Run G2 neutron sidecar smoke test
+        run: |
+          mkdir -p build/g2-sidecar-smoke
+          (
+            cd build/g2-sidecar-smoke
+            CGMF_G2_SIDECAR="$PWD/neutron-transition.jsonl" \
+            CGMF_G2_RUN_ID="ci-g2-smoke" \
+              ../utils/cgmf/cgmf.x -n 40 -e 0.0 -i 98252 -f histories.cgmf
+            python3 "$GITHUB_WORKSPACE/tools/tests/testG2Sidecar.py" \
+              neutron-transition.jsonl --expected-events 40 --run-id ci-g2-smoke
+          )
+
       - name: Save test logs
         if: always()
         uses: actions/upload-artifact@v4
