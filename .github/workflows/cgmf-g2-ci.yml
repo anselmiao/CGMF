@@ -81,17 +81,6 @@ jobs:
               build/g2-sidecar-baseline/histories.cgmf.0
           cmp build/g2-sidecar-smoke/sidecar-on.stdout \
               build/g2-sidecar-baseline/baseline.stdout
-            build/g2-u235-on/neutron-transition.jsonl
-            build/g2-u235-on/sidecar-summary.txt
-            build/g2-u235-on/rng-audit.tsv
-            build/g2-u235-on/histories.cgmf.0
-            build/g2-u235-on/sidecar-on.stdout
-            build/g2-u235-on/off-on-comparison.txt
-            build/g2-u235-off/histories.cgmf.0
-            build/g2-u235-off/sidecar-off.stdout
-            build/g2-u235-off/rng-audit.tsv
-            build/g2-u235-baseline/histories.cgmf.0
-            build/g2-u235-baseline/baseline.stdout
           echo "PASS: sidecar off/on RNG call counts and return digests match; audit-enabled output matches no-audit baseline" \
             | tee build/g2-sidecar-smoke/off-on-comparison.txt
 
@@ -149,6 +138,17 @@ jobs:
             build/g2-sidecar-off/rng-audit.tsv
             build/g2-sidecar-baseline/histories.cgmf.0
             build/g2-sidecar-baseline/baseline.stdout
+            build/g2-u235-on/neutron-transition.jsonl
+            build/g2-u235-on/sidecar-summary.txt
+            build/g2-u235-on/rng-audit.tsv
+            build/g2-u235-on/histories.cgmf.0
+            build/g2-u235-on/sidecar-on.stdout
+            build/g2-u235-on/off-on-comparison.txt
+            build/g2-u235-off/histories.cgmf.0
+            build/g2-u235-off/sidecar-off.stdout
+            build/g2-u235-off/rng-audit.tsv
+            build/g2-u235-baseline/histories.cgmf.0
+            build/g2-u235-baseline/baseline.stdout
           if-no-files-found: warn
 
       - name: Save test logs
