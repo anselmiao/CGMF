@@ -197,6 +197,44 @@ jobs:
           echo "PASS: U-235 thermal second-seed sidecar off/on RNG and baseline outputs match" \
             | tee build/g2-u235-thermal-seed201-on/off-on-comparison.txt
 
+      - name: Run G2 neutron sidecar thermal-neutron Pu-239 test
+        run: |
+          set -euo pipefail
+          # Pu-239 neutron-induced fission is supported by CGMF; 0.0253 eV = 2.53e-8 MeV.
+          mkdir -p build/g2-pu239-thermal-on
+          (
+            cd build/g2-pu239-thermal-on
+            CGMF_G2_SIDECAR="$PWD/neutron-transition.jsonl" \
+            CGMF_G2_RUN_ID="ci-g2-pu239-thermal-0p0253eV" \
+            CGMF_RNG_AUDIT=1 \
+            CGMF_RNG_AUDIT_FILE="$PWD/rng-audit.tsv" \
+              ../utils/cgmf/cgmf.x -n 200 -e 2.53e-8 -i 94239 -s 1 -f histories.cgmf \
+              > sidecar-on.stdout
+            python3 "$GITHUB_WORKSPACE/tools/tests/testG2Sidecar.py" \
+              neutron-transition.jsonl --expected-events 200 --run-id ci-g2-pu239-thermal-0p0253eV \
+              | tee sidecar-summary.txt
+          )
+          mkdir -p build/g2-pu239-thermal-off
+          (
+            cd build/g2-pu239-thermal-off
+            CGMF_RNG_AUDIT=1 CGMF_RNG_AUDIT_FILE="$PWD/rng-audit.tsv" \
+              ../utils/cgmf/cgmf.x -n 200 -e 2.53e-8 -i 94239 -s 1 -f histories.cgmf \
+              > sidecar-off.stdout
+          )
+          mkdir -p build/g2-pu239-thermal-baseline
+          (
+            cd build/g2-pu239-thermal-baseline
+            ../utils/cgmf/cgmf.x -n 200 -e 2.53e-8 -i 94239 -s 1 -f histories.cgmf \
+              > baseline.stdout
+          )
+          cmp build/g2-pu239-thermal-on/histories.cgmf.0 build/g2-pu239-thermal-off/histories.cgmf.0
+          cmp build/g2-pu239-thermal-on/sidecar-on.stdout build/g2-pu239-thermal-off/sidecar-off.stdout
+          cmp build/g2-pu239-thermal-on/rng-audit.tsv build/g2-pu239-thermal-off/rng-audit.tsv
+          cmp build/g2-pu239-thermal-on/histories.cgmf.0 build/g2-pu239-thermal-baseline/histories.cgmf.0
+          cmp build/g2-pu239-thermal-on/sidecar-on.stdout build/g2-pu239-thermal-baseline/baseline.stdout
+          echo "PASS: Pu-239 thermal 0.0253 eV sidecar off/on RNG and baseline outputs match" \
+            | tee build/g2-pu239-thermal-on/off-on-comparison.txt
+
       - name: Save G2 sidecar smoke output
         if: always()
         uses: actions/upload-artifact@v4
@@ -247,6 +285,17 @@ jobs:
             build/g2-u235-thermal-seed201-off/rng-audit.tsv
             build/g2-u235-thermal-seed201-baseline/histories.cgmf.0
             build/g2-u235-thermal-seed201-baseline/baseline.stdout
+            build/g2-pu239-thermal-on/neutron-transition.jsonl
+            build/g2-pu239-thermal-on/sidecar-summary.txt
+            build/g2-pu239-thermal-on/rng-audit.tsv
+            build/g2-pu239-thermal-on/histories.cgmf.0
+            build/g2-pu239-thermal-on/sidecar-on.stdout
+            build/g2-pu239-thermal-on/off-on-comparison.txt
+            build/g2-pu239-thermal-off/histories.cgmf.0
+            build/g2-pu239-thermal-off/sidecar-off.stdout
+            build/g2-pu239-thermal-off/rng-audit.tsv
+            build/g2-pu239-thermal-baseline/histories.cgmf.0
+            build/g2-pu239-thermal-baseline/baseline.stdout
           if-no-files-found: warn
 
       - name: Save test logs
