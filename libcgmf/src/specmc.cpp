@@ -996,8 +996,7 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
 	double cmVg[MAX_NUMBER_GAMMAS][3];
   double neutronRecoilBefore[MAX_NUMBER_NEUTRONS][3];
   double neutronRecoilAfter[MAX_NUMBER_NEUTRONS][3];
-  MCPoint neutronParents[MAX_NUMBER_NEUTRONS];
-  MCPoint neutronDaughters[MAX_NUMBER_NEUTRONS];
+
 	double vx,vy,vz,v;
 	
 	// from kinematics.cpp/.h
