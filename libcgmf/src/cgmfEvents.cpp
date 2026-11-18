@@ -28,6 +28,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <ctime>
+#include <cstdint>
 //#include <netdb.h>
 //#include <unistd.h>
 
@@ -56,11 +57,37 @@ void set_time_coincidence_window(double timew);
 
 
 std::function< double(void) > rng_cgm;
+
+static unsigned long long rngAuditCalls = 0;
+static unsigned long long rngAuditDigest = 14695981039346656037ULL;
+
 void set_rng(std::function<double(void)> rng) {
-  rng_cgm = rng;
+  if (getenv("CGMF_RNG_AUDIT") != NULL) {
+    rngAuditCalls = 0;
+    rngAuditDigest = 14695981039346656037ULL;
+    rng_cgm = [rng]() mutable {
+      const double value = rng();
+      uint64_t bits = 0;
+      memcpy(&bits, &value, sizeof(bits));
+      for (unsigned int i = 0; i < sizeof(bits); ++i) {
+        rngAuditDigest ^= (bits >> (8 * i)) & 0xffULL;
+        rngAuditDigest *= 1099511628211ULL;
+      }
+      ++rngAuditCalls;
+      return value;
+    };
+  } else {
+    rng_cgm = rng;
+  }
 }
+
 void set_rng(double (*rng) (void)) {
-  rng_cgm = rng;
+  set_rng(std::function<double(void)>(rng));
+}
+
+void get_rng_audit_stats(unsigned long long *calls, unsigned long long *digest) {
+  if (calls != NULL) *calls = rngAuditCalls;
+  if (digest != NULL) *digest = rngAuditDigest;
 }
 
 /*!

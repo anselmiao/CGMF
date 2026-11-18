@@ -46,6 +46,8 @@ jobs:
             cd build/g2-sidecar-smoke
             CGMF_G2_SIDECAR="$PWD/neutron-transition.jsonl" \
             CGMF_G2_RUN_ID="ci-g2-smoke" \
+            CGMF_RNG_AUDIT=1 \
+            CGMF_RNG_AUDIT_FILE="$PWD/rng-audit.tsv" \
               ../utils/cgmf/cgmf.x -n 40 -e 0.0 -i 98252 -s 1 -f histories.cgmf \
               > sidecar-on.stdout
             python3 "$GITHUB_WORKSPACE/tools/tests/testG2Sidecar.py" \
@@ -59,14 +61,30 @@ jobs:
           mkdir -p build/g2-sidecar-off
           (
             cd build/g2-sidecar-off
-            ../utils/cgmf/cgmf.x -n 40 -e 0.0 -i 98252 -s 1 -f histories.cgmf \
+            CGMF_RNG_AUDIT=1 CGMF_RNG_AUDIT_FILE="$PWD/rng-audit.tsv" \
+              ../utils/cgmf/cgmf.x -n 40 -e 0.0 -i 98252 -s 1 -f histories.cgmf \
               > sidecar-off.stdout
+          )
+          mkdir -p build/g2-sidecar-baseline
+          (
+            cd build/g2-sidecar-baseline
+            ../utils/cgmf/cgmf.x -n 40 -e 0.0 -i 98252 -s 1 -f histories.cgmf \
+              > baseline.stdout
           )
           cmp build/g2-sidecar-smoke/histories.cgmf.0 \
               build/g2-sidecar-off/histories.cgmf.0
           cmp build/g2-sidecar-smoke/sidecar-on.stdout \
               build/g2-sidecar-off/sidecar-off.stdout
-          echo "PASS: sidecar off/on histories and stdout are byte-identical" \
+            build/g2-sidecar-off/rng-audit.tsv
+            build/g2-sidecar-baseline/histories.cgmf.0
+            build/g2-sidecar-baseline/baseline.stdout
+          cmp build/g2-sidecar-smoke/rng-audit.tsv \
+              build/g2-sidecar-off/rng-audit.tsv
+          cmp build/g2-sidecar-smoke/histories.cgmf.0 \
+              build/g2-sidecar-baseline/histories.cgmf.0
+          cmp build/g2-sidecar-smoke/sidecar-on.stdout \
+              build/g2-sidecar-baseline/baseline.stdout
+          echo "PASS: sidecar off/on RNG call counts and return digests match; audit-enabled output matches no-audit baseline" \
             | tee build/g2-sidecar-smoke/off-on-comparison.txt
 
       - name: Save G2 sidecar smoke output
@@ -77,6 +95,7 @@ jobs:
           path: |
             build/g2-sidecar-smoke/neutron-transition.jsonl
             build/g2-sidecar-smoke/sidecar-summary.txt
+            build/g2-sidecar-smoke/rng-audit.tsv
             build/g2-sidecar-smoke/histories.cgmf.0
             build/g2-sidecar-smoke/sidecar-on.stdout
             build/g2-sidecar-smoke/off-on-comparison.txt

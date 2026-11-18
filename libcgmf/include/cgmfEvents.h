@@ -28,6 +28,7 @@ void cgmf_cleanup(void);
 
 void set_rng(std::function<double(void)>);
 void set_rng(double (*) (void));
+void get_rng_audit_stats(unsigned long long *, unsigned long long *);
 
 
 /* cgmEvent class: base class for cgmfEvent */

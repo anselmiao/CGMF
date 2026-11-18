@@ -85,6 +85,21 @@ int main(int argc, char *argv[]) {
       printf("\n/// CGMF-generated scission fragment yields Y(Z,A,KE,U,J,Pi,px,py,pz) saved in file %s ///\n", outfilename.c_str());
     }
   } else {
+    std::ofstream rngAuditFile;
+    const char *rngAuditPath = getenv("CGMF_RNG_AUDIT_FILE");
+    const bool rngAuditEnabled = getenv("CGMF_RNG_AUDIT") != NULL;
+    if (rngAuditEnabled && rngAuditPath == NULL) {
+      cerr << "CGMF_RNG_AUDIT requires CGMF_RNG_AUDIT_FILE" << endl;
+      return 2;
+    }
+    if (rngAuditEnabled) {
+      rngAuditFile.open(rngAuditPath);
+      if (!rngAuditFile.is_open()) {
+        cerr << "Cannot open RNG audit file: " << rngAuditPath << endl;
+        return 2;
+      }
+      rngAuditFile << "event\tseed\tcalls\tfnv1a64\n";
+    }
     FILE *fp = fopen(&outfilename[0],"w");
     if(ip==0) fprintf(fp, "# %5i %g %g\n", ZAIDt, incidentEnergy,timeCoincidenceWindow);
     for (int i=0; i<nevents; i++) {
@@ -93,10 +108,18 @@ int main(int argc, char *argv[]) {
       if (nevents>=1000 and (i+1)%(nevents/100)==0 and ip==0) printf("%5.2f%%\n",float(i+1)/float(nevents)*100.0);
       if (event != 0) delete event;
       event = new cgmfEvent(ZAIDt, incidentEnergy, 0.0, timeCoincidenceWindow);
+      if (rngAuditFile.is_open()) {
+        unsigned long long calls = 0, digest = 0;
+        get_rng_audit_stats(&calls, &digest);
+        rngAuditFile << (i + 1) << '\t'
+                     << (i + ip * nevents + startingEvent) << '\t'
+                     << calls << '\t' << digest << '\n';
+      }
       recordEvent (event);
       printEventToFile (fp, event, timeCoincidenceWindow);
     }
     fclose(fp);
+    if (rngAuditFile.is_open()) rngAuditFile.close();
     printSummaryEvents (event);
   }
 
