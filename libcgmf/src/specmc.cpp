@@ -888,8 +888,6 @@ void recordEmittedParticles (void) {
 
 	int index;
 	MCPoint mc_curr, mc_next;
-  MCPoint neutronParents[MAX_NUMBER_NEUTRONS];
-  MCPoint neutronDaughters[MAX_NUMBER_NEUTRONS];
 	
   double neutronEnergies [MAX_NUMBER_PARTICLES];
   double gammaEnergies [MAX_NUMBER_PARTICLES];
@@ -941,6 +939,8 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
 	
 	int index;
 	MCPoint mc_curr, mc_next;
+  MCPoint neutronParents[MAX_NUMBER_NEUTRONS];
+  MCPoint neutronDaughters[MAX_NUMBER_NEUTRONS];
 	
 	double cmNeutronEnergies  [MAX_NUMBER_NEUTRONS];
 	double neutronEnergies	  [MAX_NUMBER_NEUTRONS];
