@@ -75,9 +75,6 @@ jobs:
               build/g2-sidecar-off/histories.cgmf.0
           cmp build/g2-sidecar-smoke/sidecar-on.stdout \
               build/g2-sidecar-off/sidecar-off.stdout
-            build/g2-sidecar-off/rng-audit.tsv
-            build/g2-sidecar-baseline/histories.cgmf.0
-            build/g2-sidecar-baseline/baseline.stdout
           cmp build/g2-sidecar-smoke/rng-audit.tsv \
               build/g2-sidecar-off/rng-audit.tsv
           cmp build/g2-sidecar-smoke/histories.cgmf.0 \
@@ -101,6 +98,9 @@ jobs:
             build/g2-sidecar-smoke/off-on-comparison.txt
             build/g2-sidecar-off/histories.cgmf.0
             build/g2-sidecar-off/sidecar-off.stdout
+            build/g2-sidecar-off/rng-audit.tsv
+            build/g2-sidecar-baseline/histories.cgmf.0
+            build/g2-sidecar-baseline/baseline.stdout
           if-no-files-found: warn
 
       - name: Save test logs
