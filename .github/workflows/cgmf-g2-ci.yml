@@ -48,10 +48,10 @@ jobs:
             CGMF_G2_RUN_ID="ci-g2-smoke" \
             CGMF_RNG_AUDIT=1 \
             CGMF_RNG_AUDIT_FILE="$PWD/rng-audit.tsv" \
-              ../utils/cgmf/cgmf.x -n 40 -e 0.0 -i 98252 -s 1 -f histories.cgmf \
+              ../utils/cgmf/cgmf.x -n 200 -e 0.0 -i 98252 -s 1 -f histories.cgmf \
               > sidecar-on.stdout
             python3 "$GITHUB_WORKSPACE/tools/tests/testG2Sidecar.py" \
-              neutron-transition.jsonl --expected-events 40 --run-id ci-g2-smoke \
+              neutron-transition.jsonl --expected-events 200 --run-id ci-g2-smoke \
               | tee sidecar-summary.txt
           )
 
@@ -62,13 +62,13 @@ jobs:
           (
             cd build/g2-sidecar-off
             CGMF_RNG_AUDIT=1 CGMF_RNG_AUDIT_FILE="$PWD/rng-audit.tsv" \
-              ../utils/cgmf/cgmf.x -n 40 -e 0.0 -i 98252 -s 1 -f histories.cgmf \
+              ../utils/cgmf/cgmf.x -n 200 -e 0.0 -i 98252 -s 1 -f histories.cgmf \
               > sidecar-off.stdout
           )
           mkdir -p build/g2-sidecar-baseline
           (
             cd build/g2-sidecar-baseline
-            ../utils/cgmf/cgmf.x -n 40 -e 0.0 -i 98252 -s 1 -f histories.cgmf \
+            ../utils/cgmf/cgmf.x -n 200 -e 0.0 -i 98252 -s 1 -f histories.cgmf \
               > baseline.stdout
           )
           cmp build/g2-sidecar-smoke/histories.cgmf.0 \
