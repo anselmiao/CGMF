@@ -74,25 +74,43 @@ class MCHistory{
   int     id;  // particle identifier
   double  ep;  // emission energy
   MCPoint mp;  // MC index for intermediate state
+  MCPoint md;  // direct daughter state
  public:
   MCHistory(){
     id = 0;
     ep = 0.0;
     mp.set(0,0,0,0,0.0);
+    md.set(0,0,0,0,0.0);
   }
   MCHistory(int id0, double ep0, MCPoint mp0){
     id = id0;
     ep = ep0;
     mp = mp0;
+    md = mp0;
+  }
+  MCHistory(int id0, double ep0, MCPoint mp0, MCPoint md0){
+    id = id0;
+    ep = ep0;
+    mp = mp0;
+    md = md0;
   }
   void set(int id0, double ep0, MCPoint mp0){
     id = id0;
     ep = ep0;
     mp = mp0;
+    md = mp0;
   }
+  void set(int id0, double ep0, MCPoint mp0, MCPoint md0){
+    id = id0;
+    ep = ep0;
+    mp = mp0;
+    md = md0;
+  }
+  void setEnergy(double ep0){ ep = ep0; }
   int     getIndex()  {return id;};
   double  getEnergy() {return ep;};
   MCPoint getMCPoint(){return mp;};
+  MCPoint getDaughterMCPoint(){return md;};
 };
 
 #endif //__MCHF_H__

@@ -670,12 +670,12 @@ void mcStoreHistory(bool ic, MCPoint m0, MCPoint m1, double **spc)
   
   if(m0.getN() == m1.getN()){
     ecms = m0.getE() - m1.getE();
-    if(ic) hs[np++].set(unknown , ecms, m0);
-    else   hs[np++].set(gammaray, ecms, m0);
+    if(ic) hs[np++].set(unknown , ecms, m0, m1);
+    else   hs[np++].set(gammaray, ecms, m0, m1);
   }else{
     /*** if neutron, subtract separation energy */
     ecms = m0.getE() - m1.getE() - ncl[m0.getN()].cdt[neutron].binding_energy;
-    hs[np++].set(neutron, ecms, m0);
+    hs[np++].set(neutron, ecms, m0, m1);
   }
   if(np == MAX_CASCADE) cgmTerminateCode("too many particle decays");
   
@@ -711,7 +711,7 @@ void mcWriteHistory()
         double  ac = ncl[ mp.getN() ].za.getA();
         double  ec = hs[i].getEnergy();
         double  el = mcCmsToLabEnergy(ec,ac);
-        hs[i].set(neutron,el,mp);
+        hs[i].setEnergy(el);
       }
     }
   }
@@ -878,7 +878,7 @@ void recordEmittedParticles (void) {
 	for (int i=0; i<np-1; i++) { // loop over emitted particles
 		index = hs[i].getIndex();
 		mc_curr = hs[i].getMCPoint();
-		mc_next = hs[i+1].getMCPoint();
+		mc_next = hs[i].getDaughterMCPoint();
 		if (index==1) { // neutrons
 			neutronEnergies[neutronMultiplicity++] = hs[i].getEnergy();
 		} else if (index==0) { // gammas (no IC)
@@ -931,7 +931,7 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
   for (int i=0; i<np-1; i++) { // loop over emitted particles
     index = hs[i].getIndex();
     mc_curr = hs[i].getMCPoint();
-    mc_next = hs[i+1].getMCPoint();
+    mc_next = hs[i].getDaughterMCPoint();
     if (index==1) { // neutrons
       cmNeutronEnergies[neutronMultiplicity++] = hs[i].getEnergy();
     } else if (index==0) { // gammas (no IC)
