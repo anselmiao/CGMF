@@ -62,8 +62,8 @@ jobs:
             ../utils/cgmf/cgmf.x -n 40 -e 0.0 -i 98252 -s 1 -f histories.cgmf \
               > sidecar-off.stdout
           )
-          cmp build/g2-sidecar-smoke/histories.cgmf \
-              build/g2-sidecar-off/histories.cgmf
+          cmp build/g2-sidecar-smoke/histories.cgmf.0 \
+              build/g2-sidecar-off/histories.cgmf.0
           cmp build/g2-sidecar-smoke/sidecar-on.stdout \
               build/g2-sidecar-off/sidecar-off.stdout
           echo "PASS: sidecar off/on histories and stdout are byte-identical" \
@@ -77,10 +77,10 @@ jobs:
           path: |
             build/g2-sidecar-smoke/neutron-transition.jsonl
             build/g2-sidecar-smoke/sidecar-summary.txt
-            build/g2-sidecar-smoke/histories.cgmf
+            build/g2-sidecar-smoke/histories.cgmf.0
             build/g2-sidecar-smoke/sidecar-on.stdout
             build/g2-sidecar-smoke/off-on-comparison.txt
-            build/g2-sidecar-off/histories.cgmf
+            build/g2-sidecar-off/histories.cgmf.0
             build/g2-sidecar-off/sidecar-off.stdout
           if-no-files-found: warn
 
