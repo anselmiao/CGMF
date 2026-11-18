@@ -1,4 +1,5 @@
 name: CGMF G2 Build
+# G2 regression workflow: event IDs are per-run; RNG seeds are tracked separately.
 
 on:
   push:
