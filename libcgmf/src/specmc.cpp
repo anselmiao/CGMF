@@ -17,6 +17,8 @@
 #include <cstdio>
 #include <fstream>
 #include <functional>
+#include <sstream>
+#include <string>
 
 using namespace std;
 
@@ -68,6 +70,40 @@ void set_time_coincidence_window(double timew){
 }
 
 double gammaTimeStamp [ MAX_NUMBER_GAMMAS ];
+
+static unsigned long long g2SidecarEventId = 0;
+static std::string g2SidecarFragmentSide;
+
+void setG2SidecarContext(unsigned long long event_id, const char *fragment_side) {
+  g2SidecarEventId = event_id;
+  g2SidecarFragmentSide = fragment_side ? fragment_side : "";
+}
+
+static std::string g2JsonEscape(const std::string &value) {
+  std::ostringstream escaped;
+  for (std::string::const_iterator it=value.begin(); it!=value.end(); ++it) {
+    const unsigned char c = static_cast<unsigned char>(*it);
+    switch (c) {
+      case '"': escaped << "\\\""; break;
+      case '\\': escaped << "\\\\"; break;
+      case '\b': escaped << "\\b"; break;
+      case '\f': escaped << "\\f"; break;
+      case '\n': escaped << "\\n"; break;
+      case '\r': escaped << "\\r"; break;
+      case '\t': escaped << "\\t"; break;
+      default:
+        if (c < 0x20) {
+          const char hex[] = "0123456789abcdef";
+          escaped << "\\u00" << hex[(c >> 4) & 0xf] << hex[c & 0xf];
+        } else {
+          escaped << static_cast<char>(c);
+        }
+    }
+  }
+  return escaped.str();
+}
+
+
 
 /*!
  *
@@ -933,6 +969,8 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
     mc_curr = hs[i].getMCPoint();
     mc_next = hs[i].getDaughterMCPoint();
     if (index==1) { // neutrons
+      neutronParents[neutronMultiplicity] = mc_curr;
+      neutronDaughters[neutronMultiplicity] = mc_next;
       cmNeutronEnergies[neutronMultiplicity++] = hs[i].getEnergy();
     } else if (index==0) { // gammas (no IC)
       if (mc_curr.ifDiscrete()) {
@@ -956,6 +994,8 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
 	double cmVg[MAX_NUMBER_GAMMAS][3];
   double neutronRecoilBefore[MAX_NUMBER_NEUTRONS][3];
   double neutronRecoilAfter[MAX_NUMBER_NEUTRONS][3];
+  MCPoint neutronParents[MAX_NUMBER_NEUTRONS];
+  MCPoint neutronDaughters[MAX_NUMBER_NEUTRONS];
 	double vx,vy,vz,v;
 	
 	// from kinematics.cpp/.h
@@ -1016,6 +1056,76 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
 		fe->cmPhotonDircosw[i]    = vz/v;
 	}
 	
+
+  // Optional G2 neutron-transition sidecar. Disabled unless an output path is supplied.
+  // Give each process a distinct output path; concurrent writers to one JSONL file are unsupported.
+  const char *g2SidecarPath = std::getenv("CGMF_G2_SIDECAR");
+  if (g2SidecarPath && *g2SidecarPath && fe->nu > 0) {
+    const char *g2RunId = std::getenv("CGMF_G2_RUN_ID");
+    if (!g2RunId || !*g2RunId || g2SidecarEventId == 0 ||
+        (g2SidecarFragmentSide != "LF" && g2SidecarFragmentSide != "HF")) {
+      cgmTerminateCode("[G2 sidecar] CGMF_G2_RUN_ID and valid event context are required");
+      return;
+    }
+
+    std::ofstream g2Output(g2SidecarPath, std::ios::out | std::ios::app);
+    if (!g2Output) {
+      cgmTerminateCode("[G2 sidecar] unable to open CGMF_G2_SIDECAR for append");
+      return;
+    }
+
+    std::ostringstream g2Records;
+    g2Records << std::setprecision(17);
+    for (int i=0; i<fe->nu; ++i) {
+      const MCPoint parent = neutronParents[i];
+      const MCPoint daughter = neutronDaughters[i];
+      const int parentN = parent.getN();
+      const int daughterN = daughter.getN();
+      if (parentN < 0 || daughterN < 0 || parentN > MAX_COMPOUND || daughterN > MAX_COMPOUND) {
+        cgmTerminateCode("[G2 sidecar] invalid parent/daughter nucleus index");
+        return;
+      }
+      const int parentZ = ncl[parentN].za.getZ();
+      const int parentA = ncl[parentN].za.getA();
+      const int daughterZ = ncl[daughterN].za.getZ();
+      const int daughterA = ncl[daughterN].za.getA();
+
+      g2Records << "{\"schema\":\"cgmf.g2.neutron-transition.v1\","
+                << "\"run_id\":\"" << g2JsonEscape(g2RunId) << "\","
+                << "\"event_id\":" << g2SidecarEventId << ","
+                << "\"fragment_side\":\"" << g2SidecarFragmentSide << "\","
+                << "\"neutron_index\":" << i << ","
+                << "\"parent\":{\"Z\":" << parentZ
+                << ",\"A\":" << parentA
+                << ",\"excitation_MeV\":" << parent.getE()
+                << ",\"spin_index\":" << parent.getJ()
+                << ",\"parity\":" << parent.getP()
+                << ",\"discrete\":" << (parent.ifDiscrete() ? "true" : "false") << "},"
+                << "\"daughter\":{\"Z\":" << daughterZ
+                << ",\"A\":" << daughterA
+                << ",\"excitation_MeV\":" << daughter.getE()
+                << ",\"spin_index\":" << daughter.getJ()
+                << ",\"parity\":" << daughter.getP()
+                << ",\"discrete\":" << (daughter.ifDiscrete() ? "true" : "false") << "},"
+                << "\"neutron\":{\"energy_cm_MeV\":" << fe->cmNeutronEnergies[i]
+                << ",\"energy_lab_MeV\":" << fe->neutronEnergies[i]
+                << ",\"direction_cm\":[" << fe->cmNeutronDircosu[i] << "," << fe->cmNeutronDircosv[i] << "," << fe->cmNeutronDircosw[i] << "]"
+                << ",\"direction_lab\":[" << fe->neutronDircosu[i] << "," << fe->neutronDircosv[i] << "," << fe->neutronDircosw[i] << "]},"
+                << "\"fragment_recoil\":{\"momentum_before_MeV_c\":["
+                << neutronRecoilBefore[i][0] << "," << neutronRecoilBefore[i][1] << "," << neutronRecoilBefore[i][2] << "]"
+                << ",\"momentum_after_MeV_c\":["
+                << neutronRecoilAfter[i][0] << "," << neutronRecoilAfter[i][1] << "," << neutronRecoilAfter[i][2] << "]}"
+                << "}\n";
+    }
+    const std::string g2Payload = g2Records.str();
+    g2Output.write(g2Payload.data(), static_cast<std::streamsize>(g2Payload.size()));
+    g2Output.flush();
+    if (!g2Output) {
+      cgmTerminateCode("[G2 sidecar] write failure");
+      return;
+    }
+  }
+
 	return;
 	
 }

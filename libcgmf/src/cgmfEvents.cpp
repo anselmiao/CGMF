@@ -47,6 +47,9 @@ using namespace std;
 #include "cgmf_config.h"
 
 static bool firstcalc = true;
+static unsigned long long g2EventCounter = 0;
+
+void setG2SidecarContext(unsigned long long event_id, const char *fragment_side);
 string datadir = "";
 
 void set_time_coincidence_window(double timew);
@@ -416,6 +419,8 @@ cgmfEvent::cgmfEvent  (int isotope, double eng, double time, double timew) : cgm
   eventLF.KE = lf[0].KE;
   for (int i=0; i<3; i++) eventLF.preFragmentMomentum[i] = lf[0].preMomentum[i];
 
+  const unsigned long long g2_event_id = ++g2EventCounter;
+  setG2SidecarContext(g2_event_id, "LF");
   specMCMainFission (&eventLF);
 
   //-- heavy fragment calc. --------------------------------------------------
@@ -428,6 +433,7 @@ cgmfEvent::cgmfEvent  (int isotope, double eng, double time, double timew) : cgm
   eventHF.KE = hf[0].KE;
   for (int i=0; i<3; i++) eventHF.preFragmentMomentum[i] = hf[0].preMomentum[i];
 
+  setG2SidecarContext(g2_event_id, "HF");
   specMCMainFission (&eventHF);
 
   neutronNu = eventLF.nu + eventHF.nu;
