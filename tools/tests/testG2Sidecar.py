@@ -142,7 +142,7 @@ def main():
     sides = sorted({side for _, side in groups})
     print(f"G2 sidecar validation passed: {len(records)} neutron records, "
           f"{len(event_ids)} emitting events in execution window "
-          f"{args.event_start}..{event_end}, fragment sides={','.join(sides)}, "
+          f"{event_start}..{event_end}, fragment sides={','.join(sides)}, "
           f"{len(groups)} event/fragment groups")
 
 
