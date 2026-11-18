@@ -33,13 +33,12 @@ def main():
     parser.add_argument("jsonl", type=Path)
     parser.add_argument("--expected-events", type=int, required=True,
                         help="number of events executed (not emitting-event count)")
-    parser.add_argument("--event-start", type=int, default=1,
-                        help="first event ID in this execution window")
     parser.add_argument("--run-id", required=True)
     args = parser.parse_args()
-    if args.expected_events < 1 or args.event_start < 1:
-        raise ValueError("expected-events and event-start must be positive")
-    event_end = args.event_start + args.expected_events - 1
+    if args.expected_events < 1:
+        raise ValueError("expected-events must be positive")
+    event_start = 1
+    event_end = args.expected_events
 
     records = []
     with args.jsonl.open("r", encoding="utf-8") as stream:
@@ -65,9 +64,9 @@ def main():
 
         event_id = row.get("event_id")
         if (isinstance(event_id, bool) or not isinstance(event_id, int)
-                or not args.event_start <= event_id <= event_end):
+                or not event_start <= event_id <= event_end):
             raise ValueError(f"record {row_number}: event_id outside expected window "
-                             f"{args.event_start}..{event_end}")
+                             f"{event_start}..{event_end}")
         side = row.get("fragment_side")
         if side not in ("LF", "HF"):
             raise ValueError(f"record {row_number}: invalid fragment_side")

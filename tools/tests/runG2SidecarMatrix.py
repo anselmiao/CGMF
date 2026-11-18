@@ -19,14 +19,15 @@ def run_command(command, cwd, env, log_path):
         )
 
 
-def read_audit(path, event_start, event_count):
+def read_audit(path, seed_start, event_count):
     with path.open("r", encoding="utf-8", newline="") as stream:
         reader = csv.DictReader(stream, delimiter="\t")
         required = {"event", "seed", "calls", "fnv1a64"}
         if not reader.fieldnames or not required.issubset(reader.fieldnames):
             raise ValueError(f"{path}: RNG audit header missing required columns")
         rows = list(reader)
-    expected = list(range(event_start, event_start + event_count))
+    expected_events = list(range(1, event_count + 1))
+    expected_seeds = list(range(seed_start, seed_start + event_count))
     try:
         events = [int(row["event"]) for row in rows]
         seeds = [int(row["seed"]) for row in rows]
@@ -34,10 +35,15 @@ def read_audit(path, event_start, event_count):
         digests = [int(row["fnv1a64"]) for row in rows]
     except (TypeError, ValueError, KeyError) as exc:
         raise ValueError(f"{path}: malformed RNG audit row: {exc}") from exc
-    if events != expected:
+    if events != expected_events:
         raise ValueError(
-            f"{path}: event audit coverage mismatch; expected {expected[0]}..{expected[-1]}, "
+            f"{path}: event audit coverage mismatch; expected 1..{event_count}, "
             f"got {len(events)} rows and event IDs {events[:3]}..{events[-3:]}"
+        )
+    if seeds != expected_seeds:
+        raise ValueError(
+            f"{path}: RNG seed coverage mismatch; expected {seed_start}..{seed_start + event_count - 1}, "
+            f"got {len(seeds)} rows and seeds {seeds[:3]}..{seeds[-3:]}"
         )
     if any(seed < 0 for seed in seeds):
         raise ValueError(f"{path}: negative RNG seed")
@@ -46,6 +52,7 @@ def read_audit(path, event_start, event_count):
     if any(digest < 0 or digest >= 2**64 for digest in digests):
         raise ValueError(f"{path}: FNV-1a digest outside uint64 range")
     return {"rows": len(rows), "event_start": events[0], "event_end": events[-1],
+            "seed_start": seeds[0], "seed_end": seeds[-1],
             "min_calls": min(calls), "max_calls": max(calls)}
 
 
@@ -80,10 +87,10 @@ def main():
         name = case["name"]
         energy = str(case["energy_MeV"])
         isotope = int(case["ZAID"])
-        event_start = int(case.get("event_start", 1))
+        seed_start = int(case.get("seed_start", 1))
         event_count = int(case.get("events", matrix.get("default_events", 40)))
-        if event_start < 1 or event_count < 1:
-            raise ValueError(f"{name}: event_start and events must be positive")
+        if seed_start < 1 or event_count < 1:
+            raise ValueError(f"{name}: seed_start and events must be positive")
         case_root = output_root / name
         on_dir, off_dir, baseline_dir = (
             case_root / "on", case_root / "off", case_root / "baseline"
@@ -93,8 +100,8 @@ def main():
 
         common = [str(binary), "-n", str(event_count), "-e", energy,
                   "-i", str(isotope)]
-        if event_start != 1:
-            common += ["-s", str(event_start)]
+        if seed_start != 1:
+            common += ["-s", str(seed_start)]
         common += ["-f", "histories.cgmf"]
         run_id = "ci-g2-" + name
 
@@ -117,7 +124,7 @@ def main():
         baseline_env.pop("CGMF_RNG_AUDIT_FILE", None)
 
         print(f"[{number}/{len(cases)}] {name}: ZAID={isotope}, En={energy} MeV, "
-              f"events={event_start}..{event_start + event_count - 1}", flush=True)
+              f"event_ids=1..{event_count}, seeds={seed_start}..{seed_start + event_count - 1}", flush=True)
         run_command(common, on_dir, on_env, on_dir / "sidecar-on.stdout")
         run_command(common, off_dir, off_env, off_dir / "sidecar-off.stdout")
         run_command(common, baseline_dir, baseline_env, baseline_dir / "baseline.stdout")
@@ -139,11 +146,11 @@ def main():
         subprocess.run(
             [sys.executable, str(validator), str(jsonl),
              "--expected-events", str(event_count),
-             "--event-start", str(event_start), "--run-id", run_id],
+             "--run-id", run_id],
             cwd=case_root, check=True
         )
-        audit_summary = read_audit(audit_on, event_start, event_count)
-        read_audit(audit_off, event_start, event_count)
+        audit_summary = read_audit(audit_on, seed_start, event_count)
+        read_audit(audit_off, seed_start, event_count)
 
         comparisons = {
             "histories_on_off": history_on.read_bytes() == history_off.read_bytes(),
@@ -162,7 +169,8 @@ def main():
             sides[side] = sum(row["fragment_side"] == side for row in records)
         result = {
             "name": name, "ZAID": isotope, "energy_MeV": energy,
-            "event_start": event_start, "events_run": event_count,
+            "seed_start": seed_start, "seed_end": seed_start + event_count - 1,
+            "event_id_start": 1, "event_id_end": event_count, "events_run": event_count,
             "neutron_records": len(records),
             "emitting_events": len({row["event_id"] for row in records}),
             "LF_records": sides["LF"], "HF_records": sides["HF"],
@@ -195,13 +203,13 @@ def main():
         "- For every case: JSONL validation, RNG audit coverage, histories/stdout bytewise "
         "comparison (on/off/baseline), and RNG audit bytewise comparison (on/off).",
         "",
-        "| Case | ZAID | En (MeV) | Events | Neutron records | LF | HF |",
-        "|---|---:|---:|---:|---:|---:|---:|",
+        "| Case | ZAID | En (MeV) | Event IDs | RNG seeds | Neutron records | LF | HF |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for item in results:
         lines.append(
             f"| {item['name']} | {item['ZAID']} | {item['energy_MeV']} | "
-            f"{item['event_start']}–{item['event_start'] + item['events_run'] - 1} | "
+            f"1–{item['events_run']} | {item['seed_start']}–{item['seed_end']} | "
             f"{item['neutron_records']} | {item['LF_records']} | {item['HF_records']} |"
         )
     (output_root / "matrix-summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
