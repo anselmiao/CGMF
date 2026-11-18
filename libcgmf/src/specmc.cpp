@@ -954,13 +954,16 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
 	double Vg[MAX_NUMBER_GAMMAS][3];
 	double cmVn[MAX_NUMBER_NEUTRONS][3];
 	double cmVg[MAX_NUMBER_GAMMAS][3];
+  double neutronRecoilBefore[MAX_NUMBER_NEUTRONS][3];
+  double neutronRecoilAfter[MAX_NUMBER_NEUTRONS][3];
 	double vx,vy,vz,v;
 	
 	// from kinematics.cpp/.h
   for (int i=0; i<3; i++) fe->postFragmentMomentum[i] = fe->preFragmentMomentum[i];
-	boost (fragmentMomentum, Z, A,
-				 neutronMultiplicity, cmNeutronEnergies, neutronEnergies, cmVn, Vn,
-				 gammaMultiplicity, cmGammaEnergies, gammaEnergies, cmVg, Vg);
+  boost_with_recoil (fragmentMomentum, Z, A,
+                 neutronMultiplicity, cmNeutronEnergies, neutronEnergies, cmVn, Vn,
+                 gammaMultiplicity, cmGammaEnergies, gammaEnergies, cmVg, Vg,
+                 neutronRecoilBefore, neutronRecoilAfter);
 	for (int i=0; i<3; i++) fe->postFragmentMomentum[i] = fragmentMomentum[i];
 
   // post-neutron emission fragment kinetic energy

@@ -14,6 +14,21 @@
 
 #include "config-ff.h"
 
+void boost_with_recoil (double fragmentMomentum[3], int Zf, int Af,
+            int neutronMultiplicity,
+            double cmNeutronEnergies [MAX_NUMBER_NEUTRONS],
+            double neutronEnergies   [MAX_NUMBER_NEUTRONS],
+            double cmNeutronVelocities [MAX_NUMBER_NEUTRONS][3],
+            double neutronVelocities [MAX_NUMBER_NEUTRONS][3],
+            int gammaMultiplicity,
+            double cmGammaEnergies   [MAX_NUMBER_GAMMAS],
+            double gammaEnergies     [MAX_NUMBER_GAMMAS],
+            double cmGammaVelocities [MAX_NUMBER_GAMMAS][3],
+            double gammaVelocities   [MAX_NUMBER_GAMMAS][3],
+            double recoilMomentumBefore[MAX_NUMBER_NEUTRONS][3],
+            double recoilMomentumAfter[MAX_NUMBER_NEUTRONS][3]
+            );
+
 void boost (double fragmentMomentum[3], int Zf, int Af,
             int neutronMultiplicity,
             double cmNeutronEnergies   [MAX_NUMBER_NEUTRONS],

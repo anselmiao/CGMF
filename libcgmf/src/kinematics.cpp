@@ -26,7 +26,7 @@ using namespace std;
 #include "FissionFragments.h"
 #include "rngcgm.h"
 
-void boost (double fragmentMomentum[3], int Zf, int Af,
+void boost_with_recoil (double fragmentMomentum[3], int Zf, int Af,
             int    neutronMultiplicity,
             double cmNeutronEnergies [MAX_NUMBER_NEUTRONS],
             double neutronEnergies   [MAX_NUMBER_NEUTRONS],
@@ -36,7 +36,9 @@ void boost (double fragmentMomentum[3], int Zf, int Af,
             double cmGammaEnergies   [MAX_NUMBER_GAMMAS],
             double gammaEnergies     [MAX_NUMBER_GAMMAS],
             double cmGammaVelocities [MAX_NUMBER_GAMMAS][3],
-            double gammaVelocities   [MAX_NUMBER_GAMMAS][3]
+            double gammaVelocities   [MAX_NUMBER_GAMMAS][3],
+            double recoilMomentumBefore[MAX_NUMBER_NEUTRONS][3],
+            double recoilMomentumAfter[MAX_NUMBER_NEUTRONS][3]
             ) {
   
   double phi, cmTheta, cosCmTheta; // direction of neutron emission in c.m. of fragment
@@ -179,11 +181,17 @@ void boost (double fragmentMomentum[3], int Zf, int Af,
 
   int a_c=Af;
   for (int n=0; n<neutronMultiplicity; n++) {
+      if (recoilMomentumBefore != 0) {
+        for (int k=0; k<3; k++) recoilMomentumBefore[n][k] = fragmentMomentum[k];
+      }
       neutronEnergies[n]=neutron_emission_boost(Zf,a_c,fragmentMomentum,
 						cmNeutronEnergies[n],
 						neutronVelocities[n], 
 						cmNeutronVelocities[n],
 						false,Pcostheta,Ppreeq);
+      if (recoilMomentumAfter != 0) {
+        for (int k=0; k<3; k++) recoilMomentumAfter[n][k] = fragmentMomentum[k];
+      }
       
       a_c--; // neutron emission
     }	
@@ -247,6 +255,24 @@ pre-equlibrium neutron if we know it's statistical
 p_c contains the post neutron emission momentum, if the initial
 one is desired, one needs to save it
  */
+void boost (double fragmentMomentum[3], int Zf, int Af,
+            int neutronMultiplicity,
+            double cmNeutronEnergies [MAX_NUMBER_NEUTRONS],
+            double neutronEnergies   [MAX_NUMBER_NEUTRONS],
+            double cmNeutronVelocities [MAX_NUMBER_NEUTRONS][3],
+            double neutronVelocities [MAX_NUMBER_NEUTRONS][3],
+            int gammaMultiplicity,
+            double cmGammaEnergies   [MAX_NUMBER_GAMMAS],
+            double gammaEnergies     [MAX_NUMBER_GAMMAS],
+            double cmGammaVelocities [MAX_NUMBER_GAMMAS][3],
+            double gammaVelocities   [MAX_NUMBER_GAMMAS][3]) {
+  boost_with_recoil(fragmentMomentum, Zf, Af,
+                    neutronMultiplicity, cmNeutronEnergies, neutronEnergies,
+                    cmNeutronVelocities, neutronVelocities,
+                    gammaMultiplicity, cmGammaEnergies, gammaEnergies,
+                    cmGammaVelocities, gammaVelocities, 0, 0);
+}
+
 double neutron_emission_boost(int Z_c, int A_c, double * p_c, 
 			      double cmNeutronEnergy,
 			      double *neutronVelocities, 
