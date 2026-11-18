@@ -1,0 +1,175 @@
+{
+  "schema": "cgmf.g2.sidecar-matrix-config.v1",
+  "default_events": 40,
+  "rationale": "Native CGMF event-test configurations plus targeted 0.5 MeV and offset-window coverage. Six representative cases use 200 events; remaining cases use the native 40-event test size.",
+  "cases": [
+    {
+      "name": "cf252-sf",
+      "ZAID": 98252,
+      "energy_MeV": "0.0",
+      "events": 200,
+      "coverage": "spontaneous-fission stress baseline"
+    },
+    {
+      "name": "cf254-sf",
+      "ZAID": 98254,
+      "energy_MeV": "0.0"
+    },
+    {
+      "name": "pu238-sf",
+      "ZAID": 94238,
+      "energy_MeV": "0.0"
+    },
+    {
+      "name": "pu240-sf",
+      "ZAID": 94240,
+      "energy_MeV": "0.0"
+    },
+    {
+      "name": "pu242-sf",
+      "ZAID": 94242,
+      "energy_MeV": "0.0"
+    },
+    {
+      "name": "pu244-sf",
+      "ZAID": 94244,
+      "energy_MeV": "0.0"
+    },
+    {
+      "name": "np237-thermal",
+      "ZAID": 93237,
+      "energy_MeV": "2.53e-8"
+    },
+    {
+      "name": "np237-10mev",
+      "ZAID": 93237,
+      "energy_MeV": "10.0"
+    },
+    {
+      "name": "np237-18mev",
+      "ZAID": 93237,
+      "energy_MeV": "18.0"
+    },
+    {
+      "name": "pu239-thermal",
+      "ZAID": 94239,
+      "energy_MeV": "2.53e-8",
+      "events": 200
+    },
+    {
+      "name": "pu239-thermal-start10",
+      "ZAID": 94239,
+      "energy_MeV": "2.53e-8",
+      "event_start": 10,
+      "coverage": "native non-default event-start test"
+    },
+    {
+      "name": "pu239-thermal-window201",
+      "ZAID": 94239,
+      "energy_MeV": "2.53e-8",
+      "event_start": 201,
+      "events": 200,
+      "coverage": "second independent event window"
+    },
+    {
+      "name": "pu239-10mev",
+      "ZAID": 94239,
+      "energy_MeV": "10.0",
+      "events": 200
+    },
+    {
+      "name": "pu239-15mev",
+      "ZAID": 94239,
+      "energy_MeV": "15.0",
+      "events": 200
+    },
+    {
+      "name": "pu239-0p5mev",
+      "ZAID": 94239,
+      "energy_MeV": "0.5",
+      "coverage": "supplemental intermediate-energy point"
+    },
+    {
+      "name": "pu241-thermal",
+      "ZAID": 94241,
+      "energy_MeV": "2.53e-8"
+    },
+    {
+      "name": "pu241-10mev",
+      "ZAID": 94241,
+      "energy_MeV": "10.0"
+    },
+    {
+      "name": "pu241-18mev",
+      "ZAID": 94241,
+      "energy_MeV": "18.0"
+    },
+    {
+      "name": "u233-thermal",
+      "ZAID": 92233,
+      "energy_MeV": "2.53e-8"
+    },
+    {
+      "name": "u233-10mev",
+      "ZAID": 92233,
+      "energy_MeV": "10.0"
+    },
+    {
+      "name": "u233-18mev",
+      "ZAID": 92233,
+      "energy_MeV": "18.0"
+    },
+    {
+      "name": "u234-thermal",
+      "ZAID": 92234,
+      "energy_MeV": "2.53e-8"
+    },
+    {
+      "name": "u234-10mev",
+      "ZAID": 92234,
+      "energy_MeV": "10.0"
+    },
+    {
+      "name": "u234-18mev",
+      "ZAID": 92234,
+      "energy_MeV": "18.0"
+    },
+    {
+      "name": "u235-thermal",
+      "ZAID": 92235,
+      "energy_MeV": "2.53e-8",
+      "events": 200
+    },
+    {
+      "name": "u235-10mev",
+      "ZAID": 92235,
+      "energy_MeV": "10.0"
+    },
+    {
+      "name": "u235-18mev",
+      "ZAID": 92235,
+      "energy_MeV": "18.0"
+    },
+    {
+      "name": "u235-0p5mev",
+      "ZAID": 92235,
+      "energy_MeV": "0.5",
+      "coverage": "supplemental intermediate-energy point"
+    },
+    {
+      "name": "u238-thermal",
+      "ZAID": 92238,
+      "energy_MeV": "2.53e-8"
+    },
+    {
+      "name": "u238-10mev",
+      "ZAID": 92238,
+      "energy_MeV": "10.0"
+    },
+    {
+      "name": "u238-18mev",
+      "ZAID": 92238,
+      "energy_MeV": "18.0"
+    }
+  ]
+}

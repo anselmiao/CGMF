@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the CGMF G2 neutron-transition JSONL smoke-test output."""
+"""Validate the CGMF G2 neutron-transition JSONL output."""
 import argparse
 import json
 import math
@@ -31,9 +31,15 @@ def vector(value, label, unit=False):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("jsonl", type=Path)
-    parser.add_argument("--expected-events", type=int, required=True)
+    parser.add_argument("--expected-events", type=int, required=True,
+                        help="number of events executed (not emitting-event count)")
+    parser.add_argument("--event-start", type=int, default=1,
+                        help="first event ID in this execution window")
     parser.add_argument("--run-id", required=True)
     args = parser.parse_args()
+    if args.expected_events < 1 or args.event_start < 1:
+        raise ValueError("expected-events and event-start must be positive")
+    event_end = args.event_start + args.expected_events - 1
 
     records = []
     with args.jsonl.open("r", encoding="utf-8") as stream:
@@ -44,7 +50,6 @@ def main():
                 records.append(json.loads(line))
             except json.JSONDecodeError as exc:
                 raise ValueError(f"invalid JSON on line {line_number}: {exc}") from exc
-
     if not records:
         raise ValueError("sidecar produced no neutron records")
 
@@ -59,8 +64,10 @@ def main():
             raise ValueError(f"record {row_number}: run_id mismatch")
 
         event_id = row.get("event_id")
-        if isinstance(event_id, bool) or not isinstance(event_id, int) or not 1 <= event_id <= args.expected_events:
-            raise ValueError(f"record {row_number}: event_id out of expected range")
+        if (isinstance(event_id, bool) or not isinstance(event_id, int)
+                or not args.event_start <= event_id <= event_end):
+            raise ValueError(f"record {row_number}: event_id outside expected window "
+                             f"{args.event_start}..{event_end}")
         side = row.get("fragment_side")
         if side not in ("LF", "HF"):
             raise ValueError(f"record {row_number}: invalid fragment_side")
@@ -103,8 +110,7 @@ def main():
         for field in ("momentum_before_MeV_c", "momentum_after_MeV_c"):
             vector(recoil.get(field), f"fragment_recoil.{field}")
 
-        # CGMF's kinematics.cpp uses non-relativistic neutron momentum:
-        # p = sqrt(2 * NEUTRONMASS * amuMeV * T_lab).
+        # kinematics.cpp uses non-relativistic neutron momentum p=sqrt(2*m*T_lab).
         neutron_momentum = math.sqrt(2.0 * NEUTRON_MASS_MEV * neutron["energy_lab_MeV"])
         before = recoil["momentum_before_MeV_c"]
         after = recoil["momentum_after_MeV_c"]
@@ -112,15 +118,11 @@ def main():
         for axis in range(3):
             recoil_delta = before[axis] - after[axis]
             emitted_momentum = neutron_momentum * direction[axis]
-            if not math.isclose(
-                recoil_delta,
-                emitted_momentum,
-                rel_tol=1e-10,
-                abs_tol=RECOIL_ABS_TOLERANCE_MEV_C,
-            ):
+            if not math.isclose(recoil_delta, emitted_momentum, rel_tol=1e-10,
+                                abs_tol=RECOIL_ABS_TOLERANCE_MEV_C):
                 raise ValueError(
-                    f"record {row_number}: neutron/recoil momentum mismatch "
-                    f"on axis {axis} (delta={recoil_delta}, emitted={emitted_momentum})"
+                    f"record {row_number}: neutron/recoil momentum mismatch on axis {axis} "
+                    f"(delta={recoil_delta}, emitted={emitted_momentum})"
                 )
 
     for group, entries in groups.items():
@@ -128,30 +130,21 @@ def main():
         indices = [index for index, _ in ordered]
         if indices != list(range(len(indices))):
             raise ValueError(f"non-contiguous neutron indices for {group}: {indices}")
-
-        # The fragment momentum after neutron n must be the momentum before n+1.
         for (_, previous), (next_index, following) in zip(ordered, ordered[1:]):
             previous_after = previous["fragment_recoil"]["momentum_after_MeV_c"]
             following_before = following["fragment_recoil"]["momentum_before_MeV_c"]
             for axis in range(3):
-                if not math.isclose(
-                    previous_after[axis],
-                    following_before[axis],
-                    rel_tol=1e-12,
-                    abs_tol=RECOIL_ABS_TOLERANCE_MEV_C,
-                ):
-                    raise ValueError(
-                        f"recoil chain discontinuity for {group} before neutron "
-                        f"{next_index} on axis {axis}"
-                    )
+                if not math.isclose(previous_after[axis], following_before[axis],
+                                    rel_tol=1e-12, abs_tol=RECOIL_ABS_TOLERANCE_MEV_C):
+                    raise ValueError(f"recoil chain discontinuity for {group} before neutron "
+                                     f"{next_index} on axis {axis}")
 
     event_ids = sorted({event_id for event_id, _ in groups})
     sides = sorted({side for _, side in groups})
-    print(
-        f"G2 sidecar smoke test passed: {len(records)} neutron records, "
-        f"{len(event_ids)} emitting events, fragment sides={','.join(sides)}, "
-        f"{len(groups)} event/fragment groups"
-    )
+    print(f"G2 sidecar validation passed: {len(records)} neutron records, "
+          f"{len(event_ids)} emitting events in execution window "
+          f"{args.event_start}..{event_end}, fragment sides={','.join(sides)}, "
+          f"{len(groups)} event/fragment groups")
 
 
 if __name__ == "__main__":
