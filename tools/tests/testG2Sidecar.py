@@ -7,6 +7,9 @@ from collections import defaultdict
 from pathlib import Path
 
 SCHEMA = "cgmf.g2.neutron-transition.v1"
+# Keep these in sync with libcgmf/include/physics.h.
+NEUTRON_MASS_MEV = 1.00866491578 * 931.494013
+RECOIL_ABS_TOLERANCE_MEV_C = 1e-8
 
 
 def finite_number(value, label):
@@ -69,7 +72,7 @@ def main():
         if key in seen:
             raise ValueError(f"duplicate neutron record key: {key}")
         seen.add(key)
-        groups[(event_id, side)].append(index)
+        groups[(event_id, side)].append((index, row))
 
         parent, daughter = row.get("parent"), row.get("daughter")
         if not isinstance(parent, dict) or not isinstance(daughter, dict):
@@ -100,10 +103,47 @@ def main():
         for field in ("momentum_before_MeV_c", "momentum_after_MeV_c"):
             vector(recoil.get(field), f"fragment_recoil.{field}")
 
-    for group, indices in groups.items():
-        ordered = sorted(indices)
-        if ordered != list(range(len(ordered))):
-            raise ValueError(f"non-contiguous neutron indices for {group}: {ordered}")
+        # CGMF's kinematics.cpp uses non-relativistic neutron momentum:
+        # p = sqrt(2 * NEUTRONMASS * amuMeV * T_lab).
+        neutron_momentum = math.sqrt(2.0 * NEUTRON_MASS_MEV * neutron["energy_lab_MeV"])
+        before = recoil["momentum_before_MeV_c"]
+        after = recoil["momentum_after_MeV_c"]
+        direction = neutron["direction_lab"]
+        for axis in range(3):
+            recoil_delta = before[axis] - after[axis]
+            emitted_momentum = neutron_momentum * direction[axis]
+            if not math.isclose(
+                recoil_delta,
+                emitted_momentum,
+                rel_tol=1e-10,
+                abs_tol=RECOIL_ABS_TOLERANCE_MEV_C,
+            ):
+                raise ValueError(
+                    f"record {row_number}: neutron/recoil momentum mismatch "
+                    f"on axis {axis} (delta={recoil_delta}, emitted={emitted_momentum})"
+                )
+
+    for group, entries in groups.items():
+        ordered = sorted(entries, key=lambda item: item[0])
+        indices = [index for index, _ in ordered]
+        if indices != list(range(len(indices))):
+            raise ValueError(f"non-contiguous neutron indices for {group}: {indices}")
+
+        # The fragment momentum after neutron n must be the momentum before n+1.
+        for (_, previous), (next_index, following) in zip(ordered, ordered[1:]):
+            previous_after = previous["fragment_recoil"]["momentum_after_MeV_c"]
+            following_before = following["fragment_recoil"]["momentum_before_MeV_c"]
+            for axis in range(3):
+                if not math.isclose(
+                    previous_after[axis],
+                    following_before[axis],
+                    rel_tol=1e-12,
+                    abs_tol=RECOIL_ABS_TOLERANCE_MEV_C,
+                ):
+                    raise ValueError(
+                        f"recoil chain discontinuity for {group} before neutron "
+                        f"{next_index} on axis {axis}"
+                    )
 
     event_ids = sorted({event_id for event_id, _ in groups})
     sides = sorted({side for _, side in groups})
