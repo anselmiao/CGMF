@@ -888,6 +888,8 @@ void recordEmittedParticles (void) {
 
 	int index;
 	MCPoint mc_curr, mc_next;
+  MCPoint neutronParents[MAX_NUMBER_NEUTRONS];
+  MCPoint neutronDaughters[MAX_NUMBER_NEUTRONS];
 	
   double neutronEnergies [MAX_NUMBER_PARTICLES];
   double gammaEnergies [MAX_NUMBER_PARTICLES];
@@ -1077,8 +1079,8 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
     std::ostringstream g2Records;
     g2Records << std::setprecision(17);
     for (int i=0; i<fe->nu; ++i) {
-      const MCPoint parent = neutronParents[i];
-      const MCPoint daughter = neutronDaughters[i];
+      MCPoint parent = neutronParents[i];
+      MCPoint daughter = neutronDaughters[i];
       const int parentN = parent.getN();
       const int daughterN = daughter.getN();
       if (parentN < 0 || daughterN < 0 || parentN > MAX_COMPOUND || daughterN > MAX_COMPOUND) {
