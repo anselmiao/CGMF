@@ -40,6 +40,7 @@ jobs:
 
       - name: Run G2 neutron sidecar smoke test
         run: |
+          set -o pipefail
           mkdir -p build/g2-sidecar-smoke
           (
             cd build/g2-sidecar-smoke
@@ -47,8 +48,19 @@ jobs:
             CGMF_G2_RUN_ID="ci-g2-smoke" \
               ../utils/cgmf/cgmf.x -n 40 -e 0.0 -i 98252 -f histories.cgmf
             python3 "$GITHUB_WORKSPACE/tools/tests/testG2Sidecar.py" \
-              neutron-transition.jsonl --expected-events 40 --run-id ci-g2-smoke
+              neutron-transition.jsonl --expected-events 40 --run-id ci-g2-smoke \
+              | tee sidecar-summary.txt
           )
+
+      - name: Save G2 sidecar smoke output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cgmf-g2-sidecar-smoke
+          path: |
+            build/g2-sidecar-smoke/neutron-transition.jsonl
+            build/g2-sidecar-smoke/sidecar-summary.txt
+          if-no-files-found: warn
 
       - name: Save test logs
         if: always()
