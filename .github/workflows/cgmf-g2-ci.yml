@@ -159,6 +159,44 @@ jobs:
           echo "PASS: U-235 thermal 0.0253 eV sidecar off/on RNG and baseline outputs match" \
             | tee build/g2-u235-thermal-on/off-on-comparison.txt
 
+      - name: Run G2 neutron sidecar thermal U-235 second-seed test
+        run: |
+          set -euo pipefail
+          # Independent event-seed window: 201..400.
+          mkdir -p build/g2-u235-thermal-seed201-on
+          (
+            cd build/g2-u235-thermal-seed201-on
+            CGMF_G2_SIDECAR="$PWD/neutron-transition.jsonl" \
+            CGMF_G2_RUN_ID="ci-g2-u235-thermal-seed201" \
+            CGMF_RNG_AUDIT=1 \
+            CGMF_RNG_AUDIT_FILE="$PWD/rng-audit.tsv" \
+              ../utils/cgmf/cgmf.x -n 200 -e 2.53e-8 -i 92235 -s 201 -f histories.cgmf \
+              > sidecar-on.stdout
+            python3 "$GITHUB_WORKSPACE/tools/tests/testG2Sidecar.py" \
+              neutron-transition.jsonl --expected-events 400 --run-id ci-g2-u235-thermal-seed201 \
+              | tee sidecar-summary.txt
+          )
+          mkdir -p build/g2-u235-thermal-seed201-off
+          (
+            cd build/g2-u235-thermal-seed201-off
+            CGMF_RNG_AUDIT=1 CGMF_RNG_AUDIT_FILE="$PWD/rng-audit.tsv" \
+              ../utils/cgmf/cgmf.x -n 200 -e 2.53e-8 -i 92235 -s 201 -f histories.cgmf \
+              > sidecar-off.stdout
+          )
+          mkdir -p build/g2-u235-thermal-seed201-baseline
+          (
+            cd build/g2-u235-thermal-seed201-baseline
+            ../utils/cgmf/cgmf.x -n 200 -e 2.53e-8 -i 92235 -s 201 -f histories.cgmf \
+              > baseline.stdout
+          )
+          cmp build/g2-u235-thermal-seed201-on/histories.cgmf.0 build/g2-u235-thermal-seed201-off/histories.cgmf.0
+          cmp build/g2-u235-thermal-seed201-on/sidecar-on.stdout build/g2-u235-thermal-seed201-off/sidecar-off.stdout
+          cmp build/g2-u235-thermal-seed201-on/rng-audit.tsv build/g2-u235-thermal-seed201-off/rng-audit.tsv
+          cmp build/g2-u235-thermal-seed201-on/histories.cgmf.0 build/g2-u235-thermal-seed201-baseline/histories.cgmf.0
+          cmp build/g2-u235-thermal-seed201-on/sidecar-on.stdout build/g2-u235-thermal-seed201-baseline/baseline.stdout
+          echo "PASS: U-235 thermal second-seed sidecar off/on RNG and baseline outputs match" \
+            | tee build/g2-u235-thermal-seed201-on/off-on-comparison.txt
+
       - name: Save G2 sidecar smoke output
         if: always()
         uses: actions/upload-artifact@v4
@@ -198,6 +236,17 @@ jobs:
             build/g2-u235-thermal-off/rng-audit.tsv
             build/g2-u235-thermal-baseline/histories.cgmf.0
             build/g2-u235-thermal-baseline/baseline.stdout
+            build/g2-u235-thermal-seed201-on/neutron-transition.jsonl
+            build/g2-u235-thermal-seed201-on/sidecar-summary.txt
+            build/g2-u235-thermal-seed201-on/rng-audit.tsv
+            build/g2-u235-thermal-seed201-on/histories.cgmf.0
+            build/g2-u235-thermal-seed201-on/sidecar-on.stdout
+            build/g2-u235-thermal-seed201-on/off-on-comparison.txt
+            build/g2-u235-thermal-seed201-off/histories.cgmf.0
+            build/g2-u235-thermal-seed201-off/sidecar-off.stdout
+            build/g2-u235-thermal-seed201-off/rng-audit.tsv
+            build/g2-u235-thermal-seed201-baseline/histories.cgmf.0
+            build/g2-u235-thermal-seed201-baseline/baseline.stdout
           if-no-files-found: warn
 
       - name: Save test logs
