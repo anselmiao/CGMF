@@ -25,7 +25,7 @@ int main() {
   assert(copied.isUnmappable());
 
   MCHistory history;
-  history.set(gammaray, 0.0, state, copied);
+  history.set(0, 0.0, state, copied);
   assert(history.getMCPoint().isUnmappable());
   assert(history.getDaughterMCPoint().isUnmappable());
 
