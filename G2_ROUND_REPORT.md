@@ -433,3 +433,52 @@ Run #151（workflow run ID `44586698377`，commit `3d8c45a7a119a43795c0c630fba35
 - LF 单侧落盘风险：**SOURCE-VERIFIED**。
 - 成对暂存/提交机制：**PROPOSED，未实现、未测试**。
 - Run #151 输出及其所有不完整事件：仍不可用于 M0–M3 或 P/H/O。
+
+
+## Run #104：LF/HF sidecar 成对暂存实现与测试加固（SOURCE_AUDITED + IMPLEMENTED；完整 CI 未通过）
+
+### 实现核对
+
+当前分支已加入 `G2SidecarEventBuffer`（`libcgmf/include/g2_sidecar_transaction.h`），并在 `specmc.cpp` 的 `recordEmittedParticlesFission()` 中统一暂存中子 sidecar 与 mixed-history sidecar：
+
+1. LF 记录只进入内存缓冲区，不立即打开输出文件。
+2. 同一 event_id 的 HF 到达后，缓冲器返回 Complete。
+3. 每个输出文件分别将 LF+HF payload 合并为一次 append/write/flush；中子 payload 为空时不写空行，mixed-history 仍保留两侧摘要。
+4. HF 先到、event_id 错配、重复 LF/HF、未知 side 等序列 fail closed；不会覆盖活动缓冲。
+5. `cgmTerminateCode()` 仍然是进程级退出。该机制只建立 sidecar 的成对提交边界，不实现事件跳过或恢复。
+
+### 新发现并修复的测试缺陷
+
+原 `g2-sidecar-transaction.cpp` 使用标准 `assert()`。顶层 CMake 默认构建类型为 Release，通常定义 `NDEBUG`，因此这些断言可能被编译掉；CTest 显示 PASS 并不能证明配对逻辑断言实际执行。
+
+已在提交 `968c7c48f17982bf66822e14acfc16600070a69e` 将其改为显式 `require()` 检查，失败时输出错误并返回非零。补齐/明确覆盖：
+- LF 暂存、HF 完成及 LF→HF 顺序；
+- HF 前不得出现 HF payload；
+- 零中子 payload 仍能完成事件，mixed 摘要不丢失；
+- HF 先到、事件 ID 错配、重复 LF、重复 HF；
+- 完成后未 reset 不得覆盖下一事件；
+- event_id=0、非法 fragment_side。
+
+这次只是测试代码修正，必须由新 CI 实际运行后才能把这些断言标记为 COMPUTATION_VERIFIED。
+
+### Run #156：实际 CI 状态
+
+Run #156（workflow ID `44589725299`，commit `b0c417d580a52e412113a786af5d8e33bf30fff3`）：
+- CMake Configure、C++ Build：PASS。
+- Native CTest：98 项中 76% 通过；12 项事件执行测试失败，另有 12 项依赖测试未运行。失败日志仍指向无 E1 可映射离散态；不是成对缓冲器的断言失败。
+- G2 分析单元测试、种子矩阵验证：PASS。
+- G2 sidecar matrix：仍因模拟进程 exit 255 失败；后续模型分析步骤被跳过。
+- native golden enforcement 失败；旧 golden 不应覆盖。
+
+注意：Run #156 的 transaction 测试是在旧 `assert()` 版本下执行，且 Release 构建可能使断言失效。因此不能用该次 CTest PASS 证明事务逻辑正确。新显式检查提交之后，尚无对应 CI 结果。
+
+### 原子性边界与剩余风险
+
+- LF+HF 在**单个文件内部**通过单次合并写入，避免了原先逐侧写入窗口。
+- neutron JSONL 与 mixed-history JSONL 是两个独立文件，普通文件 append 无法提供跨文件事务原子性。若第一文件写入成功而第二文件失败，run 必须整体作废；不得将其视为完整数据。
+- 该缓冲器没有事件级失败记录、跳过或回滚能力；桥接失败仍终止进程，尚未提交的 LF 暂存随进程退出丢弃。
+- 仍需验证实际运行中 LF/HF 配对输出、零中子边界、validator 的拒绝行为；单元测试通过也不能替代完整 G2 matrix。
+
+### 状态修订
+
+Run #103 中“成对暂存/提交机制 PROPOSED、未实现”的状态由本节更新为：**IMPLEMENTED，显式测试已加固，CI 待验证**。Run #151/156 因桥接失败生成的部分数据仍不可用于 M0–M3、匹配残差或 P/H/O；物理桥接赋权继续 BLOCKED。
