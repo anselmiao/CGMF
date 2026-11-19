@@ -1,6 +1,8 @@
 #ifndef CGMF_GAMMA_TRANSITION_SELECTION_H
 #define CGMF_GAMMA_TRANSITION_SELECTION_H
 
+#include <cmath>
+
 // Pure electromagnetic selection-rule predicate for an explicitly specified
 // multipolarity. This does not infer multipolarity or transition probability.
 namespace cgmf {
@@ -20,7 +22,10 @@ inline bool isAllowedGammaTransition(
     int final_parity,
     GammaTransitionMultipolarity multipolarity) {
 
-  if (initial_spin < 0.0 || final_spin < 0.0) return false;
+  if (!std::isfinite(initial_energy) || !std::isfinite(final_energy) ||
+      !std::isfinite(initial_spin) || !std::isfinite(final_spin)) return false;
+  if (initial_energy < 0.0 || final_energy < 0.0 ||
+      initial_spin < 0.0 || final_spin < 0.0) return false;
   if ((initial_parity != 1 && initial_parity != -1) ||
       (final_parity != 1 && final_parity != -1)) return false;
 
