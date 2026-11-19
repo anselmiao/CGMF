@@ -895,3 +895,44 @@ C++ 在数据库读取完成后从 `allLevels` / `numberLevels` / `zaidIndex` �
 4. 只有确定来源后，才讨论是否需要单独的数据修正提案；任何数据修正都必须单独分支、保留原 golden，并以新的验证协议评估，不能混入本轮审计。
 
 本轮没有修改模拟规则、离散数据库或 golden；仅通过环境门控诊断完成 CI 运行时数据来源和内存记录取证。
+
+
+## Run #112：⁸⁹Br 上游数据生成链的仓库盘点（SOURCE_AUDITED；原始 RIPL 行待读取）
+
+### 1. 仓库内已确认的源材料
+
+对当前分支 Git tree 做完整递归盘点，发现：
+- `data/ripl3-levels.dat`：27,316,178 bytes；Git blob SHA `c3c3a816730deef172ccbd11b0dfd58b6d197d90`。
+- `data/ripl3-levels-2015.dat`：70,158,325 bytes；Git blob SHA `3be0a27558c793837f6c3cc5deb45ea1deee7259`。
+- `data/discreteLevels.dat`：4,250,841 bytes；Git blob SHA `dfd64cd3d7d890fec4b74e4bb82575ce0cc82e7c`。
+
+仓库树中没有发现 `transformLevelDataFile.ipynb` 或 `Nucleus.py`。因此，CGMF 当前仓库包含两份 RIPL3 大型源数据文件和最终运行文件，但没有文档所述的转换 notebook / Python 处理类。
+
+### 2. 官方仓库文档确认的转换规则
+
+读取 `doc/rtd/discreteLevels.rst`，其明确说明：
+- `cgmfDiscreteLevels.dat` 从 RIPL-3 完整数据文件生成；
+- 先读完整 RIPL 数据，再修复缺失/未指派的自旋和宇称，最后修复 gamma transitions；
+- 对缺失或未指派 Jπ 的能级，按 KCK 连续能级密度系统处理；缺失宇称按均匀分布假设随机选择；
+- RIPL-3 对不确定能级给出多个 Jπ 选项时，选第一项；
+- 基态 Jπ 完全未知时，按核素奇偶性采用默认值（奇 A 核默认 1/2+）；
+- 文档明确警告这些任意处理可能显著影响特定核素的 γ 级联研究。
+
+这使“预处理时的多解选择/缺失值补全”成为 ⁸⁹Br 数据差异的可检验候选路径，但还不能证明它就是本例原因。
+
+### 3. 本轮尚未完成的内容
+
+- 两份 RIPL3 文件均为大型数据文件；本轮只从 Git tree 取得文件大小和 blob SHA，未取得 ⁸⁹Br 的原始记录行。
+- 未能从仓库定位转换 notebook、`Nucleus.py` 或可复现生成命令。
+- 因此不能判断 ⁸⁹Br 的原始 RIPL 记录是否为 5/2−、是否提供多个候选 Jπ、是否缺失/不确定，或 2+ 是如何产生的。
+- 不可把文档中“奇 A 默认 1/2+”直接套用到本例：运行时记录是 2+，这更需要原始条目和转换步骤来解释。
+
+### 4. 状态与下一步
+
+- 仓库 RIPL3 源文件存在性、大小、Git blob SHA：**SOURCE_AUDITED / COMPUTATION_VERIFIED**。
+- 官方文档对生成流程和缺失 Jπ 处理规则的说明：**SOURCE_AUDITED**。
+- ⁸⁹Br 原始 RIPL3 Jπ、对应版本差异、最终 2+ 的生成原因：**BLOCKED**。
+- 下一步仅做两份 RIPL3 大文件的定点解析：按其真实文件格式识别 Z=35,A=89 的记录边界，抽取能级及候选 Jπ 原文，并与最终 `discreteLevels.dat` 对照；随后判断转换工具是否可从仓库历史/上游项目恢复。若源数据本身没有 ⁸⁹Br 记录或候选项，明确记录缺失，不推测补值来源。
+- 继续不改模拟选择器、E1 规则、离散数据或 golden；不重跑完整矩阵。
+
+本轮为仓库和官方说明的来源盘点，没有改动物理代码或模拟数据。
