@@ -47,6 +47,8 @@ jobs:
 
       - name: Run event-state model competition unit tests (synthetic fixtures)
         run: python3 -m unittest discover -s tools/tests -p 'testG2EventStateModelCompetition.py' -v
+      - name: Run fragment-state ablation unit tests (synthetic fixtures)
+        run: python3 -m unittest discover -s tools/tests -p 'testG2FragmentStateAblation.py' -v
 
       - name: Run RNG seed matrix validator unit tests
         run: python3 -m unittest discover -s tools/tests -p 'testG2SeedMatrix.py' -v
@@ -111,6 +113,30 @@ jobs:
                     build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
             --test build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
             --output "$out/train-201-400_401-600_test-1-200.json"
+
+      - name: Run three-fold LF/HF fragment-state ablation on independent Pu-239 thermal seeds
+        run: |
+          set -euo pipefail
+          out=build/g2-sidecar-matrix/fragment-state-ablation
+          mkdir -p "$out"
+          python3 tools/analysis/g2FragmentStateAblation.py \
+            --train build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --output "$out/train-1-200_201-400_test-401-600.json" \
+            --ridge 1.0 --bootstrap 2000 --bootstrap-seed 20261119
+          python3 tools/analysis/g2FragmentStateAblation.py \
+            --train build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+            --output "$out/train-1-200_401-600_test-201-400.json" \
+            --ridge 1.0 --bootstrap 2000 --bootstrap-seed 20261119
+          python3 tools/analysis/g2FragmentStateAblation.py \
+            --train build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+            --output "$out/train-201-400_401-600_test-1-200.json" \
+            --ridge 1.0 --bootstrap 2000 --bootstrap-seed 20261119
 
       - name: Save G2 matrix artifacts
         if: always()
