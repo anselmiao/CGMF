@@ -1236,8 +1236,7 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
                     << ",\"direction_cm\":[" << fe->cmPhotonDircosu[mixedGammaIndex] << ","
                     << fe->cmPhotonDircosv[mixedGammaIndex] << "," << fe->cmPhotonDircosw[mixedGammaIndex] << "]"
                     << ",\"direction_lab\":[" << fe->photonDircosu[mixedGammaIndex] << ","
-                    << fe->photonDircosv[mixedGammaIndex] << "," << fe->photonDircosw[mixedGammaIndex] << "]"
-                    << ",\"photon_age_s\":" << fe->photonAges[mixedGammaIndex] << "}";
+                    << fe->photonDircosv[mixedGammaIndex] << "," << fe->photonDircosw[mixedGammaIndex] << "]}";
         ++mixedGammaIndex;
       } else {
         mixedRecord << ",\"internal_conversion\":true";
