@@ -25,7 +25,7 @@ SCHEMA = "cgmf.g2.mixed-history.v1"
 
 def finite(value, label):
     if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
-        raise ValueError(f"{label} must be a finite finite-number")
+        raise ValueError(f"{label} must be finite")
 
 
 def vec3(value, label):
@@ -71,6 +71,8 @@ def validate_fragment(row):
     if initial["A"] < 1 or initial["Z"] < 0 or initial["Z"] > initial["A"]:
         raise ValueError("invalid initial nuclide")
     finite(initial.get("excitation_MeV"), "initial excitation")
+    if initial["excitation_MeV"] < 0:
+        raise ValueError("negative initial excitation")
     neutrons = []
     for index, tr in enumerate(transitions):
         if not isinstance(tr, dict) or tr.get("emission_index") != index:
@@ -174,7 +176,7 @@ def bin_value(value, width):
     return math.floor(value / width)
 
 
-def cross_fragment(events, a_width, ex_width, permutations, seed):
+def cross_fragment(events, ex_width, permutations, seed):
     rows = []
     for event_id, sides in sorted(events.items()):
         if "LF" not in sides or "HF" not in sides:
@@ -334,8 +336,6 @@ def main():
     parser.add_argument("--permutations", type=int, default=2000)
     parser.add_argument("--seed", type=int, default=20261119)
     parser.add_argument("--detector-config", type=Path)
-    if parser.parse_args is None:
-        raise RuntimeError("argparse unavailable")
     args = parser.parse_args()
     if args.excitation_bin_MeV <= 0 or args.permutations < 1:
         raise ValueError("excitation bin width and permutation count must be positive")
@@ -361,7 +361,7 @@ def main():
             "HF": intra_fragment([f for f in fragments if f["side"] == "HF"]),
         },
         "layer_2_cross_fragment": cross_fragment(
-            events, 1.0, args.excitation_bin_MeV, args.permutations, args.seed
+            events, args.excitation_bin_MeV, args.permutations, args.seed
         ),
         "layer_3_detector_projection": None,
         "input_contract": {
