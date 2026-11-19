@@ -394,7 +394,7 @@ static int mcSelectE1DiscreteBridge(int nucleus, double initialEnergy,
     return -1;
   }
 
-  const Nucleus &target = ncl[nucleus];
+  Nucleus &target = ncl[nucleus];
   const int Z = target.za.getZ();
   const int A = target.za.getA();
   if (target.ndisc <= 0) {
