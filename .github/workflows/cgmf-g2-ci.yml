@@ -138,6 +138,27 @@ jobs:
             --output "$out/train-201-400_401-600_test-1-200.json" \
             --ridge 1.0 --bootstrap 2000 --bootstrap-seed 20261119
 
+      - name: Run three-fold shared-energy versus LF spin/parity decomposition (post-hoc diagnostic)
+        run: |
+          set -euo pipefail
+          out=build/g2-sidecar-matrix/shared-energy-decomposition
+          mkdir -p "$out"
+          python3 tools/analysis/g2SharedEnergyDecomposition.py \
+            --train build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --output "$out/train-1-200_201-400_test-401-600.json"
+          python3 tools/analysis/g2SharedEnergyDecomposition.py \
+            --train build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+            --output "$out/train-1-200_401-600_test-201-400.json"
+          python3 tools/analysis/g2SharedEnergyDecomposition.py \
+            --train build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+            --output "$out/train-201-400_401-600_test-1-200.json"
+
       - name: Save G2 matrix artifacts
         if: always()
         uses: actions/upload-artifact@v4
