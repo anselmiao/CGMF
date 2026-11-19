@@ -195,9 +195,17 @@ void specMCMainFission(fissionEventType *fe)
 	if(ncl[0].ncont == 0){
 
 		/*** find nearest discrete level for given Ex */
+		// statStoreLevelExcite returns a 1-based level number for the
+		// legacy specGammaDiscrete interface; mcGammaCascade expects a
+		// 0-based array index.
 		int nstart = statStoreLevelExcite(&ncl[0]);
+		int startLevel = (nstart > 0) ? nstart - 1 : 0;
+		if (startLevel < 0 || startLevel >= ncl[0].ndisc) {
+			cgmTerminateCode("[specMCMainFission] invalid discrete start level");
+			return;
+		}
   	np = 0;
-		int final_state = mcGammaCascade(0,nstart,spc);
+		int final_state = mcGammaCascade(0,startLevel,spc);
 		/*** insert final state */
 		int c = 0;
 		MCPoint mcurr;
@@ -306,11 +314,18 @@ void specMCMain(double initJ, int initP, double targE, double spinf, unsigned lo
   /*** decay start at a given discrete level */
   if(ncl[0].ncont == 0){
     /*** find nearest discrete level for given Ex */
+    // statStoreLevelExcite returns a 1-based level number; the Monte
+    // Carlo cascade indexes ncl[].lev with 0-based indices.
     int nstart = statStoreLevelExcite(&ncl[0]);
+    int startLevel = (nstart > 0) ? nstart - 1 : 0;
+    if (startLevel < 0 || startLevel >= ncl[0].ndisc) {
+      cgmTerminateCode("[specMCMain] invalid discrete start level");
+      return;
+    }
 
     for(unsigned long t=0 ; t<nsim ; t++){
       np = 0;
-      mcGammaCascade(0,nstart,spc);
+      mcGammaCascade(0,startLevel,spc);
       if(ctl.print_history) mcWriteHistory();
       recordEmittedParticles();
     }
