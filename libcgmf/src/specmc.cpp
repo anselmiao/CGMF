@@ -1172,8 +1172,8 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
     int mixedGammaIndex = 0;
     for (int i=0; i<np-1; ++i) {
       const int particleId = hs[i].getIndex();
-      const MCPoint parent = hs[i].getMCPoint();
-      const MCPoint daughter = hs[i].getDaughterMCPoint();
+      MCPoint parent = hs[i].getMCPoint();
+      MCPoint daughter = hs[i].getDaughterMCPoint();
       const int parentN = parent.getN();
       const int daughterN = daughter.getN();
       if (parentN < 0 || daughterN < 0 ||
