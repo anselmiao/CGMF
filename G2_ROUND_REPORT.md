@@ -761,3 +761,39 @@ CGMF 官方用户手册明确说明，运行用 `cgmfDiscreteLevels.dat` 从 RIP
 下一轮最小补证应只增加只读诊断：在 `readDiscreteLevelData()` 成功打开文件后打印 `fp` 实际打开的路径（或由调用端传入并记录最终路径）、文件 SHA-256，以及 ZAID 35089/53132 的 ndisc 和所有能级 energy/spin/parity；同时打印 `CGMFDATA` 是否存在、`-d` 是否传入、`INSTALL_DATADIR` 与 `BUILD_DATADIR` 的目录存在性。诊断不得改动选择器、抽样、离散数据库或 golden。取得该证据前，不重跑完整 G2 matrix，也不将 Run #151/170 失败数据纳入 M0–M3/P/H/O。
 
 本轮无模拟代码改动、无数据库改动、无 golden 改动；仅完成源码、CI 日志与既有 artifact 的只读审计。
+
+
+## Run #110：运行时离散能级审计开关（IMPLEMENTED；CI待执行）
+
+### 1. 只读诊断实现
+
+在 `libcgmf/src/ripl2levels.cpp::readDiscreteLevelData()` 增加环境变量门控的诊断：
+
+- 仅当 `CGMF_DATA_AUDIT` 存在时输出诊断，不改变正常执行路径。
+- 在成功打开文件后，记录实际传给 `ifstream::open` 的 `opened_file` 字符串、全局 `datadir`、`CGMFDATA` 环境变量，以及编译期 `INSTALL_DATADIR` / `BUILD_DATADIR` 对应离散数据文件是否存在。
+- 数据库读完后，仅对 ZAID 35089（⁸⁹Br）和 53132（¹³²I）输出数据库记录中的 `ndisc` 与逐级 `level_index / energy_MeV / spin / parity`；若核素不在数据库中，明确输出 `not_in_database`。
+- 诊断使用现有读入后的 `allLevels` / `zaidIndex` / `numberLevels`，不重解析、不修订、不补写任何物理数据。
+
+### 2. 矩阵日志的文件哈希取证
+
+在 `tools/tests/runG2SidecarMatrix.py` 增加只读审计前缀：
+
+- 仅为 sidecar-on 子进程设置 `CGMF_DATA_AUDIT=1`，sidecar-off 与 baseline 环境保持不变。
+- 在启动 on 子进程前，按源码优先级解析工作目录同名文件、`CGMFDATA`、编译生成配置中的安装目录/构建目录；把选中路径、选择来源和 Python `hashlib.sha256` 文件哈希写入同一个 `sidecar-on.stdout` 日志。
+- C++ 侧同时输出真实成功打开的路径和两种核素的内存数据库快照。两侧路径一致时，哈希可归属到运行时实际读入文件；若不一致，审计将暴露解析差异，而不会把 Python 预测当作运行时事实。
+- Python 路径解析特意遵循 `setdatapath()` 的目录存在性优先级：安装目录存在但文件缺失时不会错误回退到构建目录。
+
+### 3. 影响边界
+
+- 诊断由环境变量显式开启；未设置时仅增加一次环境变量读取，不输出数据，不改计算。
+- 不改 E1 选择器、初态生成、跃迁抽样、随机数、sidecar schema、golden 或数据库文件。
+- on 模式额外输出诊断文本，因此原先 on/off stdout 字节相等的比较在诊断开关打开时会因预期诊断行而失效。当前脚本仍保留既有 stdout 比较；因此本轮 CI 若在该比较处通过不了，需要将“诊断输出”从物理 stdout 非干扰比较中剥离或对比去除诊断行后的 stdout，不能将预期诊断差异误判为模拟行为变化。**注意：当前首个 CF-252 case 在 Run #151 已于模拟启动后很早失败；若再次在该点失败，stdout 比较不会执行，诊断日志仍会由 always artifact 上传。**
+
+### 4. 状态
+
+- `SOURCE_AUDITED`：诊断点位于实际成功打开的文件之后，能报告 C++ 读入的实际核素表。
+- `IMPLEMENTED`：代码与矩阵日志脚本已提交到研究分支。
+- `BLOCKED / CI_PENDING`：尚未有本轮编译与运行结果；不能称诊断已编译验证或已取得运行时 SHA/能级数据。
+- 下一项：读取该提交触发的 CI build 结果；若编译通过，检查 artifact 中 `cf252-sf/on/sidecar-on.stdout` 的 Python SHA、C++ opened_file、ZAID 35089/53132 能级快照。然后再决定是否以同样开关执行针对性的单事件复现；不运行完整矩阵，不触碰旧 golden。
+
+本轮为诊断代码/测试日志辅助代码改动，无模拟物理规则改动。
