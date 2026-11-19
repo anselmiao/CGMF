@@ -193,3 +193,10 @@ Run #95（commit `0590629244853c57c4e9c1d0f821046b524b9369`）的 CMake Configur
 因此，这三项旧 rank 0 golden 已被 1-based → 0-based 离散起点修复后的确定性输出取代。为避免把整份输出复制进 CMake，改用 CMake 原生 `file(SHA256)` 对 serial 全文件和 MPI rank 0 文件执行严格 SHA-256 回归；MPI rank 1 继续与原始 golden 逐字节比较。旧 rank 0 reference 文件保留作历史溯源，不再作为修复后输出的验收值。其余原生测试及 golden 不变。
 
 这不是放宽门禁：serial、MPI rank 0 仍然要求完整输出字节级相同（SHA-256）；MPI rank 1 仍逐字节比较。Run #95 原始输出 artifact：`cgmf-native-regression-outputs`，artifact ID `14550306265`。
+
+
+### 严格重基准实现状态（2026-11-20）
+
+已将 Run #95 的审定输出摘要落实为 CTest 检查：新增 `checkHistorySha256.cmake`，对 Pu-242 sf、U-235 thermal、U-235 thermal+time 三个受影响用例分别校验 serial 全文件 SHA-256 与 MPI rank 0 SHA-256；MPI rank 1 继续逐字节对照原始 reference。三份旧 rank 0 reference 未删除，保留溯源。该实现没有使用 `continue-on-error` 绕过差异，也没有改变其余用例的 golden。
+
+**验证状态必须分开记录：** Run #95 验证的是旧 CTest 逐字节比较，故其最终失败不能算新 SHA-256 门禁通过；新门禁已进入当前工作分支源码，但仍需由该分支的新 CI 运行验证 Configure、Build、96 项原生测试与 G2 矩阵。新 CI 通过前，不标记为 CI 已修复完成。
