@@ -131,7 +131,7 @@ def pearson(x, y):
     return sum((a-mx)*(b-my) for a,b in zip(x,y))/math.sqrt(xx*yy)
 
 
-def make_rows(events, excitation_width):
+def make_rows(events, excitation_width, include_spin_parity=False):
     rows = []
     incomplete = 0
     for eid, sides in sorted(events.items()):
@@ -140,11 +140,17 @@ def make_rows(events, excitation_width):
             continue
         lf, hf = sides["LF"], sides["HF"]
         li, hi = lf["initial_fragment"], hf["initial_fragment"]
-        key = (
+        key_parts = [
             li["A"], li["Z"], hi["A"], hi["Z"],
             math.floor(float(li["excitation_MeV"])/excitation_width),
             math.floor(float(hi["excitation_MeV"])/excitation_width),
-        )
+        ]
+        if include_spin_parity:
+            for state in (li, hi):
+                if "spin_stored" not in state or "parity_index" not in state:
+                    raise ValueError("spin/parity conditioning requested but absent from sidecar")
+                key_parts.extend([state["spin_stored"], state["parity_index"]])
+        key = tuple(key_parts)
         rows.append({
             "event_id": eid, "stratum": key,
             "x": fragment_features(lf), "y": fragment_features(hf),
@@ -246,6 +252,8 @@ def main():
     ap.add_argument("--excitation-bins-MeV", default="1,2,4")
     ap.add_argument("--permutations", type=int, default=5000)
     ap.add_argument("--seed", type=int, default=20261119)
+    ap.add_argument("--include-spin-parity", action="store_true",
+                    help="add exact LF/HF stored spin and parity to conditioning strata")
     args = ap.parse_args()
     widths = [float(x) for x in args.excitation_bins_MeV.split(",") if x.strip()]
     if not widths or any(x <= 0 for x in widths) or args.permutations < 1:
@@ -253,7 +261,7 @@ def main():
     events = load_events(args.mixed_jsonl)
     results = []
     for width in widths:
-        rows, incomplete = make_rows(events, width)
+        rows, incomplete = make_rows(events, width, args.include_spin_parity)
         result = run_width(rows, width, args.permutations, args.seed)
         result["complete_event_pairs"] = len(rows)
         result["incomplete_events"] = incomplete
@@ -261,6 +269,8 @@ def main():
             "exact LF/HF A and Z",
             f"LF and HF initial excitation separately binned at {width:g} MeV",
         ]
+        if args.include_spin_parity:
+            result["conditioning"].append("exact LF/HF stored spin and parity index")
         result["conditioning_not_available_or_not_used"] = [
             "TKE/TXE as explicit event variables",
             "scission configuration and neck state",
@@ -273,6 +283,7 @@ def main():
         "input_schema": SCHEMA,
         "events_in_file": len(events),
         "features_per_fragment": FEATURES,
+        "conditioning_tier": "A/Z + excitation + exact spin/parity" if args.include_spin_parity else "A/Z + excitation",
         "results_by_excitation_bin": results,
         "interpretation": (
             "The omnibus statistic measures conditional cross-covariance of multivariate "
