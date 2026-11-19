@@ -109,6 +109,14 @@ def sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def stdout_without_data_audit(path):
+    """Remove opt-in provenance lines before the simulation stdout comparison."""
+    return b"".join(
+        line for line in path.read_bytes().splitlines(keepends=True)
+        if not line.startswith(b"[CGMF DATA AUDIT")
+    )
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--binary", type=Path, required=True)
@@ -219,8 +227,8 @@ def main():
         comparisons = {
             "histories_on_off": history_on.read_bytes() == history_off.read_bytes(),
             "histories_on_baseline": history_on.read_bytes() == history_baseline.read_bytes(),
-            "stdout_on_off": stdout_on.read_bytes() == stdout_off.read_bytes(),
-            "stdout_on_baseline": stdout_on.read_bytes() == stdout_baseline.read_bytes(),
+            "stdout_on_off": stdout_without_data_audit(stdout_on) == stdout_without_data_audit(stdout_off),
+            "stdout_on_baseline": stdout_without_data_audit(stdout_on) == stdout_without_data_audit(stdout_baseline),
             "rng_audit_on_off": audit_on.read_bytes() == audit_off.read_bytes(),
         }
         failed = [key for key, passed in comparisons.items() if not passed]
