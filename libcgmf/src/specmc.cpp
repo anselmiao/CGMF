@@ -569,7 +569,6 @@ MCPoint mcFindNext(int c0, int c1, int jspin, int parity)
   /*** if no transition, force decay to the ground state */
 //  m.set(c0,0,0,0,0.0);
 //  //IS: Ionel :: modified to force the transition into a state allowed by multiplicity 1 transition
-  const int ndisc = ncl[c0].ndisc;
   const int index0 = mcSelectE1DiscreteBridge(
       c0, ncl[c0].max_energy, jspin, parity);
   if (index0 < 0) {
