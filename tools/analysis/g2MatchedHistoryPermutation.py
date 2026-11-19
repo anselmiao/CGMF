@@ -163,6 +163,15 @@ def greedy_pairs(records):
     return sorted(pairs, key=lambda p: (p[0], p[1]["event_id"], p[2]["event_id"]))
 
 
+def sign_flip_rows(rows, rng):
+    """Flip each matched pair's entire HF difference vector as one unit."""
+    flipped = []
+    for row in rows:
+        sign = 1.0 if rng.random() < 0.5 else -1.0
+        flipped.append([sign * value for value in row])
+    return flipped
+
+
 def test_pairs(pairs, caliper, permutations, seed):
     selected = [(d,a,b) for d,a,b in pairs if d <= caliper]
     if not selected:
@@ -192,7 +201,7 @@ def test_pairs(pairs, caliper, permutations, seed):
     rng = random.Random(seed)
     extreme = 0
     for _ in range(permutations):
-        yp = [[v if rng.random() < 0.5 else -v for v in row] for row in dy]
+        yp = sign_flip_rows(dy, rng)
         if statistic(yp) >= observed:
             extreme += 1
     distances = [d for d,_,_ in selected]
