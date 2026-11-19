@@ -322,3 +322,8 @@ Run #125（workflow run ID `44576007076`）曾在 Configure 阶段失败。日�
 - 需要新 CI 先通过 Configure/Build、MCPoint 状态测试、selection-rule 测试、原生回归和 G2 矩阵；随后才进行两条回退入口的统一候选接口接线。
 
 本轮未修改黄金文件、未改变跃迁抽样分布、未生成新物理事件。
+
+
+### Run #100：状态接口 CI 编译诊断（2026-11-20）
+
+Run #138（ID `44576738737`）已通过 CMake Configure；Build 阶段失败。日志唯一首要编译错误定位到 `mchf.h:22`：状态枚举声明意外成为 `enum enum class MCPointStatus`。已修正为 `enum class MCPointStatus`（提交 `3767e7fd5f3c0b7e7f7996343c1f9e7789f90a1a`）。因此 Run #138 不能算作构建通过；它验证了测试源文件路径修正有效，并暴露了枚举声明语法错误。修正后的构建仍待新 CI 验证。
