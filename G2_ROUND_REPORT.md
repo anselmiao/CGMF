@@ -1045,3 +1045,46 @@ CGMF 文档说明：数值 spin 或 parity 缺失/未指派时会按 KCK 系统�
 不再围绕运行时 `statFixDiscreteLevels()` 做重复排查。下一步应定点解析 `ripl3-levels-2015.dat` 中 Z=35、A=89 的原始条目，并与已读取的 `ripl3-levels.dat` 行比较；同时检查该文件的版本头、日期和记录格式。若两份 RIPL 源文件均为未指派 Jπ，则生成器缺失仍是主要阻断项，应将最终 (2^+) 暂列为不可追溯的历史预处理产物，不猜算法、不改输入数据库、不改 E1 选择器。
 
 本轮没有修改物理代码、输入数据库、golden 或事件矩阵。
+
+
+## Run #115：官方文档规则、数据文件历史与转换器可追溯性边界
+
+### 1. 官方文档的确切规则（SOURCE_AUDITED）
+
+官方 `doc/rtd/discreteLevels.rst`（CGMF 1.0.0 文档，提交 `b1a10b7` 引入）明确说明：
+- 专用离散能级文件由 RIPL-3 完整数据文件生成；
+- 文档点名 `transformLevelDataFile.ipynb` 与 `Nucleus.py`；
+- 缺失/未指定 spin、parity 的处理规则：J 按 KCK level-density systematics 选择，缺失宇称按均匀分布随机选择；
+- RIPL 给出不确定能级的多个 Jπ 选择时，选第一项；
+- 基态完全未知时按核素奇偶类别赋默认值；
+- 文档警告任意修正可能显著影响特定 γ 衰变链研究。
+
+这份文档没有给出逐条记录处理的优先顺序、随机数种子、解析括号候选项的精确代码，也没有证明 ⁸⁹Br 这条记录经过哪一条分支。
+
+### 2. 数据文件历史（COMPUTATION_VERIFIED）
+
+通过官方 GitHub commits API 按路径查询：
+- `data/discreteLevels.dat` 只有两条提交记录：CGMF 1.0.0（2020-11-18，`b1a10b7`）与 CGMF 1.1.0（2021-04-30，`e333c9c`）。
+- `transformLevelDataFile.ipynb`、`Nucleus.py`、`data/cgmfDiscreteLevels.dat`、`data/cgmfDiscreteLevels-2015.dat` 在官方仓库 path-history 查询中均无提交记录。
+- 头文件 `libcgmf/include/ripl2levels.h` 说明运行时专用文件名为 `discreteLevels.dat`，并注释“used to be called 'cgmfDiscreteLevels-2015.dat'”。这与 RIPL 源文件 `ripl3-levels-2015.dat` 是两个不同名称，不能混淆。
+
+### 3. 对 ⁸⁹Br 的结论边界
+
+RIPL 原始行的数值字段 `spin=-1.0, parity=0`，文本注释为 `(3/2-,5/2-)`；当前 CI 运行时专用库记录为 `spin=2.0, parity=+1`。官方文档描述的 KCK/random/first-choice 规则只能说明转换阶段可能进行过数据修正，不能从现有证据推出这一条最终 (2^+) 的具体来源。尤其“第一候选”若直接对应文本括号内容，也不能解释为何最终是 (2^+)。
+
+因此：
+- 专用文件的历史提交节点：**COMPUTATION_VERIFIED**；
+- 官方文档描述的转换规则：**SOURCE_AUDITED**；
+- ⁸⁹Br 最终 (2^+) 的具体生成分支、输入版本与随机状态：**BLOCKED**；
+- 当前没有证据支持将最终值归因于运行时 `statFixDiscreteLevels()`，也没有证据支持归因于“选第一候选”。
+
+### 4. 访问限制与后续路线
+
+GitHub 文件读取接口对 `ripl3-levels-2015.dat` 的整文件响应超过当前接口大小限制；本轮没有拿到该文件的可核验 ⁸⁹Br 定点记录。不能把读取失败当成“记录不存在”或“与另一版本一致”。
+
+最小后续路线：
+1. 获取文件的分块/可定点读取方式，或在有该仓库完整 checkout 的环境中本地检索 ⁸⁹Br 条目；
+2. 对照官方 1.0.0 与 1.1.0 的 `discreteLevels.dat` 记录，确认何时从原始 Jπ 变成 (2^+)；
+3. 若生成 notebook/class 未能恢复，则将具体生成机制标为不可追溯历史预处理，不自行补造算法。
+
+本轮没有改动物理选择规则、数据库、golden 或模拟代码。
