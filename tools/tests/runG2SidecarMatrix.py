@@ -64,7 +64,7 @@ def discrete_level_audit_prefix(cwd, env, binary):
     else:
         lines.append(f"[CGMF DATA AUDIT PYTHON] selected_file={path}")
         lines.append(f"[CGMF DATA AUDIT PYTHON] sha256={sha256(path)}")
-    return ("\\n".join(lines) + "\\n").encode("utf-8")
+    return ("\n".join(lines) + "\n").encode("utf-8")
 
 
 def read_audit(path, seed_start, event_count):
