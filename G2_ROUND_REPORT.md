@@ -407,3 +407,29 @@ Run #151（workflow run ID `44586698377`，commit `3d8c45a7a119a43795c0c630fba35
 4. 在事件级失败契约和覆盖率报告实现前，不使用本轮失败运行生成的部分 sidecar 做 M0–M3、匹配残差或 P/H/O 竞争分析。
 
 **结论：** Run #151 已验证诊断代码可编译并在原生测试中运行。当前阻断是离散能级数据/桥接物理赋权不足以支持所有强制映射，不是可通过放宽筛选条件来安全修复的普通软件缺陷。G2 新数据矩阵仍未获得有效完整数据。
+
+
+## Run #103：LF/HF 事件写入生命周期审计
+
+### 已核实的源码事实
+
+- `cgmfEvents.cpp` 对每个 G2 事件先设置 `(event_id, LF)` 并调用 `specMCMainFission(&eventLF)`，随后设置同一 `event_id` 的 `HF` 并调用 `specMCMainFission(&eventHF)`。两侧顺序固定为 LF→HF。
+- 两次调用最终都进入 `recordEmittedParticlesFission(fe)`。中子 sidecar 在该函数内逐碎片构造 JSONL，并立即以 append 模式写入、`flush()`；LF 成功写入后，HF 尚未开始。
+- 混合历史 sidecar 同样在每次 `recordEmittedParticlesFission` 内逐碎片 append/flush；每个碎片一条摘要，即使该侧没有中子也会写一条混合历史记录。
+- 因此，Run #151 在 LF 已成功、HF 桥接失败时，确实可能留下 LF 单侧记录。此结论由调用顺序和写入位置直接支持，不只是根据失败日志推断。
+- `testG2MixedHistory.py` 已要求每个预期事件都恰有 LF、HF 两条混合历史摘要；它能拒绝不完整事件，但这是事后拒绝，不会阻止不完整记录先落盘。`testG2Sidecar.py` 单独验证中子记录的键、连续索引和运动学一致性；不应单独把“出现某事件的 neutron row”当作完整事件证据。
+
+### 最小安全修正设计（尚未实现）
+
+1. 在进程内为当前唯一活动事件暂存 LF 中子 JSONL 与 LF 混合历史 JSONL，不打开输出文件。
+2. HF 完成并通过两类记录的内部一致性检查后，将对应 LF+HF payload 分别一次性 append 到各自文件；HF 无中子时，中子 payload 可为空，但混合历史仍必须包含 HF 摘要。
+3. 事件 ID 不匹配、缺少 LF 暂存、重复 LF/HF 或写入失败均应 fail closed；不得自动覆盖旧暂存或补造记录。
+4. 目前 `cgmTerminateCode()` 直接终止进程，故本修正只建立“成对落盘”边界，不宣称实现事件级恢复/跳过。物理桥接失败仍终止本次模拟；尚未提交的 LF 暂存随进程退出而丢弃。
+5. 两个输出文件之间无法通过普通文件 append 获得跨文件事务原子性。每个文件内的 LF+HF payload 可合并为单次写入；若任一文件写入失败，整次 run 仍标记失败，不能进入分析。后续仍由 mixed-history validator 检查每个 event_id 的 LF/HF 覆盖。
+
+### 状态
+
+- 源码生命周期审计：**COMPUTATION/ SOURCE-VERIFIED（静态源码路径核验）**，不是运行验证。
+- LF 单侧落盘风险：**SOURCE-VERIFIED**。
+- 成对暂存/提交机制：**PROPOSED，未实现、未测试**。
+- Run #151 输出及其所有不完整事件：仍不可用于 M0–M3 或 P/H/O。
