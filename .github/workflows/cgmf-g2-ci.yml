@@ -45,6 +45,15 @@ jobs:
       - name: Run matched conditional history unit tests (synthetic fixtures)
         run: python3 -m unittest discover -s tools/tests -p 'testG2MatchedHistoryPermutation.py' -v
 
+      - name: Run event-state model competition unit tests (synthetic fixtures)
+        run: python3 -m unittest discover -s tools/tests -p 'testG2EventStateModelCompetition.py' -v
+
+      - name: Run RNG seed matrix validator unit tests
+        run: python3 -m unittest discover -s tools/tests -p 'testG2SeedMatrix.py' -v
+
+      - name: Validate non-overlapping RNG seed ranges in matrix
+        run: python3 tools/tests/validateG2SeedMatrix.py tools/tests/g2SidecarMatrix.json
+
       - name: Run complete G2 neutron and mixed-history sidecar matrix
         run: |
           set -euo pipefail
@@ -80,6 +89,28 @@ jobs:
               --permutations 250 \
               --seed 20261119
           done
+
+      - name: Run three-fold event-state model competition across independent Pu-239 thermal seed ranges
+        run: |
+          set -euo pipefail
+          out=build/g2-sidecar-matrix/event-state-model-competition
+          mkdir -p "$out"
+          # Each fold trains on two disjoint 200-event seed ranges and tests on the third.
+          python3 tools/analysis/g2EventStateModelCompetition.py \
+            --train build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --output "$out/train-1-200_201-400_test-401-600.json"
+          python3 tools/analysis/g2EventStateModelCompetition.py \
+            --train build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+            --output "$out/train-1-200_401-600_test-201-400.json"
+          python3 tools/analysis/g2EventStateModelCompetition.py \
+            --train build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+            --output "$out/train-201-400_401-600_test-1-200.json"
 
       - name: Save G2 matrix artifacts
         if: always()
