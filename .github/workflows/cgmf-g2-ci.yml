@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - qi/g2-neutron-transition-history
+      - qi/g2-unified-history-v1
   workflow_dispatch:
 
 permissions:
@@ -34,20 +35,21 @@ jobs:
       - name: Run native CGMF test suite
         run: ctest --test-dir build --output-on-failure
 
-      - name: Run complete G2 neutron sidecar matrix
+      - name: Run complete G2 neutron and mixed-history sidecar matrix
         run: |
           set -euo pipefail
           python3 tools/tests/runG2SidecarMatrix.py \
             --binary build/utils/cgmf/cgmf.x \
             --matrix tools/tests/g2SidecarMatrix.json \
             --validator tools/tests/testG2Sidecar.py \
+            --mixed-validator tools/tests/testG2MixedHistory.py \
             --output-dir build/g2-sidecar-matrix
 
       - name: Save G2 matrix artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cgmf-g2-sidecar-matrix
+          name: cgmf-g2-mixed-history-matrix
           path: |
             build/g2-sidecar-matrix/
           if-no-files-found: warn
