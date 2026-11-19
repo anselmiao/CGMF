@@ -38,6 +38,9 @@ jobs:
       - name: Run G2 three-layer analysis unit tests (synthetic fixtures)
         run: python3 -m unittest discover -s tools/tests -p 'testG2ThreeLayerAnalysis.py' -v
 
+      - name: Run conditional full-history analysis unit tests (synthetic fixtures)
+        run: python3 -m unittest discover -s tools/tests -p 'testG2ConditionalHistoryAnalysis.py' -v
+
       - name: Run complete G2 neutron and mixed-history sidecar matrix
         run: |
           set -euo pipefail
