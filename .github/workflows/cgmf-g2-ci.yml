@@ -51,6 +51,19 @@ jobs:
             --mixed-validator tools/tests/testG2MixedHistory.py \
             --output-dir build/g2-sidecar-matrix
 
+      - name: Run conditional full-history analysis on representative CI simulations
+        run: |
+          set -euo pipefail
+          mkdir -p build/g2-sidecar-matrix/conditional-analysis
+          for case_name in cf252-sf pu239-thermal u235-thermal; do
+            python3 tools/analysis/g2ConditionalHistoryAnalysis.py \
+              "build/g2-sidecar-matrix/${case_name}/on/mixed-history.jsonl" \
+              --output "build/g2-sidecar-matrix/conditional-analysis/${case_name}.json" \
+              --excitation-bins-MeV 1,2,4 \
+              --permutations 250 \
+              --seed 20261119
+          done
+
       - name: Save G2 matrix artifacts
         if: always()
         uses: actions/upload-artifact@v4
