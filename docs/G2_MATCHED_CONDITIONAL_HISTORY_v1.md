@@ -11,7 +11,7 @@ It builds one record per complete LF/HF event pair. Matching is exact on:
 It matches approximately on:
 - LF and HF initial excitation;
 - LF and HF stored spin;
-- LF and HF pre-fragment momentum magnitudes.
+- mean LF/HF pre-fragment momentum magnitude and the vector momentum-closure residual.
 
 Continuous covariates are standardized across complete events. Within each exact group, all pairwise distances are computed and a deterministic greedy disjoint matching selects the shortest pairs first. The caliper is the standardized RMS distance across the six continuous covariates.
 
