@@ -62,6 +62,13 @@ jobs:
               --excitation-bins-MeV 1,2,4 \
               --permutations 250 \
               --seed 20261119
+            python3 tools/analysis/g2ConditionalHistoryAnalysis.py \
+              "build/g2-sidecar-matrix/${case_name}/on/mixed-history.jsonl" \
+              --output "build/g2-sidecar-matrix/conditional-analysis/${case_name}-spin-parity.json" \
+              --excitation-bins-MeV 1,2,4 \
+              --permutations 250 \
+              --seed 20261119 \
+              --include-spin-parity
           done
 
       - name: Save G2 matrix artifacts
