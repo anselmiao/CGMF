@@ -40,7 +40,7 @@ void recordEmittedParticlesFission (fissionEventType *);
 static void    mcHistoryLoop            (MCPoint, Pdata *, double **);
 //static MCPoint mcFindNext               (int, int);
 static MCPoint mcFindNext               (int, int, int, int);
-static int       mcSelectE1DiscreteBridge (int, double, int, int);
+static int       mcSelectE1DiscreteBridge (int, double, int, int, const char *);
 static int     mcGammaCascade           (int, int, double **);
 static MCPoint mcSampleStart            (double, Parity **);
 static MCPoint mcFixedStart             (double, Parity **);
@@ -385,23 +385,82 @@ void specMCMain(double initJ, int initP, double targE, double spinf, unsigned lo
 /*      Monte Carlo Neutron and Gamma Emission            */
 /**********************************************************/
 static int mcSelectE1DiscreteBridge(int nucleus, double initialEnergy,
-                                    int spinIndex, int initialParity)
+                                    int spinIndex, int initialParity,
+                                    const char *site)
 {
-  if (nucleus < 0 || ncl[nucleus].ndisc <= 0) return -1;
+  if (nucleus < 0) {
+    std::cerr << "[MC bridge diagnostic] site=" << site
+              << " invalid_nucleus_index=" << nucleus << std::endl;
+    return -1;
+  }
+
+  const Nucleus &target = ncl[nucleus];
+  const int Z = target.za.getZ();
+  const int A = target.za.getA();
+  if (target.ndisc <= 0) {
+    std::cerr << "[MC bridge diagnostic] site=" << site
+              << " event_id=" << g2SidecarEventId
+              << " fragment_side=" << g2SidecarFragmentSide
+              << " nucleus_index=" << nucleus << " Z=" << Z << " A=" << A
+              << " initial_energy_MeV=" << initialEnergy
+              << " spin_index=" << spinIndex << " initial_parity=" << initialParity
+              << " ndisc=" << target.ndisc << " result=no_discrete_levels"
+              << std::endl;
+    return -1;
+  }
+
   // Continuum population index j represents J=j+halfint(first-level spin).
   const double initialSpin =
-      static_cast<double>(spinIndex) + halfint(ncl[nucleus].lev[0].spin);
+      static_cast<double>(spinIndex) + halfint(target.lev[0].spin);
   int selected = -1;
   double bestRandom = -1.0;
-  for (int k = 0; k < ncl[nucleus].ndisc; ++k) {
-    const Level &candidate = ncl[nucleus].lev[k];
-    if (!cgmf::isAllowedGammaTransition(
-            initialEnergy, initialSpin, initialParity,
-            candidate.energy, candidate.spin, candidate.parity,
-            cgmf::GammaTransitionMultipolarity::E1)) continue;
+  int invalid = 0, energyRejected = 0, spinRejected = 0, parityRejected = 0;
+  for (int k = 0; k < target.ndisc; ++k) {
+    const Level &candidate = target.lev[k];
+    if (!std::isfinite(initialEnergy) || !std::isfinite(initialSpin) ||
+        !std::isfinite(candidate.energy) || !std::isfinite(candidate.spin) ||
+        (initialParity != 1 && initialParity != -1) ||
+        (candidate.parity != 1 && candidate.parity != -1) ||
+        initialEnergy < 0.0 || candidate.energy < 0.0 ||
+        initialSpin < 0.0 || candidate.spin < 0.0) {
+      ++invalid;
+      continue;
+    }
+    if (!(candidate.energy < initialEnergy)) {
+      ++energyRejected;
+      continue;
+    }
+    const double deltaSpin = std::fabs(initialSpin - candidate.spin);
+    if (deltaSpin > 1.0 || 1.0 > initialSpin + candidate.spin) {
+      ++spinRejected;
+      continue;
+    }
+    if (initialParity * candidate.parity != -1) {
+      ++parityRejected;
+      continue;
+    }
+
     // Preserve legacy equal-candidate sampling among E1-allowed levels.
     const double draw = rng_cgm();
     if (draw > bestRandom) { bestRandom = draw; selected = k; }
+  }
+
+  if (selected < 0) {
+    std::cerr << std::setprecision(17)
+              << "[MC bridge diagnostic] site=" << site
+              << " event_id=" << g2SidecarEventId
+              << " fragment_side=" << g2SidecarFragmentSide
+              << " nucleus_index=" << nucleus << " Z=" << Z << " A=" << A
+              << " initial_energy_MeV=" << initialEnergy
+              << " spin_index=" << spinIndex
+              << " initial_spin=" << initialSpin
+              << " initial_parity=" << initialParity
+              << " ndisc=" << target.ndisc
+              << " rejected_invalid=" << invalid
+              << " rejected_energy=" << energyRejected
+              << " rejected_angular_momentum=" << spinRejected
+              << " rejected_parity=" << parityRejected
+              << " accepted=0" << std::endl;
   }
   return selected;
 }
@@ -459,7 +518,7 @@ void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
       if( (mnext.getE() < elcut) && (!mnext.ifDiscrete()) ){
 				const int ndisc = ncl[c0].ndisc;
         const int index0 = mcSelectE1DiscreteBridge(
-            c0, mcurr.getE(), mcurr.getJ(), mcurr.getP());
+            c0, mcurr.getE(), mcurr.getJ(), mcurr.getP(), "lower_cut");
         if (index0 < 0 || index0 >= ndisc) {
           mnext.markUnmappable();
         } else {
@@ -570,7 +629,7 @@ MCPoint mcFindNext(int c0, int c1, int jspin, int parity)
 //  m.set(c0,0,0,0,0.0);
 //  //IS: Ionel :: modified to force the transition into a state allowed by multiplicity 1 transition
   const int index0 = mcSelectE1DiscreteBridge(
-      c0, ncl[c0].max_energy, jspin, parity);
+      c0, ncl[c0].max_energy, jspin, parity, "mc_find_next");
   if (index0 < 0) {
     m.markUnmappable();
     return m;
