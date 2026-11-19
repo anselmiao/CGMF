@@ -78,6 +78,66 @@ static bool gammaTimeStampValid [ MAX_CASCADE ];
 static unsigned long long g2SidecarEventId = 0;
 static std::string g2SidecarFragmentSide;
 
+struct G2SidecarPendingEvent {
+  unsigned long long eventId = 0;
+  bool hasLF = false;
+  bool hasHF = false;
+  std::string neutronLF, neutronHF;
+  std::string mixedLF, mixedHF;
+};
+static G2SidecarPendingEvent g2PendingEvent;
+
+static void g2AppendPayload(const char *path, const std::string &payload, const char *label) {
+  if (!path || !*path || payload.empty()) return;
+  std::ofstream output(path, std::ios::out | std::ios::app);
+  if (!output) {
+    cgmTerminateCode(std::string("[G2 sidecar] unable to open ") + label);
+    return;
+  }
+  output.write(payload.data(), static_cast<std::streamsize>(payload.size()));
+  output.flush();
+  if (!output) cgmTerminateCode(std::string("[G2 sidecar] write failure: ") + label);
+}
+
+static void g2StageAndCommitEvent(unsigned long long eventId, const std::string &side,
+                                  const std::string &neutronPayload,
+                                  const std::string &mixedPayload) {
+  if (eventId == 0 || (side != "LF" && side != "HF")) {
+    cgmTerminateCode("[G2 sidecar] invalid event context while staging");
+    return;
+  }
+  const char *neutronPath = std::getenv("CGMF_G2_SIDECAR");
+  const char *mixedPath = std::getenv("CGMF_G2_MIXED_HISTORY_SIDECAR");
+  if ((!neutronPath || !*neutronPath) && (!mixedPath || !*mixedPath)) return;
+
+  if (side == "LF") {
+    if (g2PendingEvent.eventId != 0 || g2PendingEvent.hasLF || g2PendingEvent.hasHF) {
+      cgmTerminateCode("[G2 sidecar] stale or duplicate pending LF event");
+      return;
+    }
+    g2PendingEvent.eventId = eventId;
+    g2PendingEvent.hasLF = true;
+    g2PendingEvent.neutronLF = neutronPayload;
+    g2PendingEvent.mixedLF = mixedPayload;
+    return;
+  }
+
+  if (g2PendingEvent.eventId != eventId || !g2PendingEvent.hasLF || g2PendingEvent.hasHF) {
+    cgmTerminateCode("[G2 sidecar] HF event does not match exactly one pending LF event");
+    return;
+  }
+  g2PendingEvent.hasHF = true;
+  g2PendingEvent.neutronHF = neutronPayload;
+  g2PendingEvent.mixedHF = mixedPayload;
+
+  // Keep each file's LF+HF event payload contiguous in one append/write operation.
+  g2AppendPayload(neutronPath, g2PendingEvent.neutronLF + g2PendingEvent.neutronHF,
+                  "CGMF_G2_SIDECAR");
+  g2AppendPayload(mixedPath, g2PendingEvent.mixedLF + g2PendingEvent.mixedHF,
+                  "CGMF_G2_MIXED_HISTORY_SIDECAR");
+  g2PendingEvent = G2SidecarPendingEvent();
+}
+
 void setG2SidecarContext(unsigned long long event_id, const char *fragment_side) {
   g2SidecarEventId = event_id;
   g2SidecarFragmentSide = fragment_side ? fragment_side : "";
@@ -1150,18 +1210,13 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
 
   // Optional G2 neutron-transition sidecar. Disabled unless an output path is supplied.
   // Give each process a distinct output path; concurrent writers to one JSONL file are unsupported.
+  std::string g2NeutronPayload;
   const char *g2SidecarPath = std::getenv("CGMF_G2_SIDECAR");
   if (g2SidecarPath && *g2SidecarPath && fe->nu > 0) {
     const char *g2RunId = std::getenv("CGMF_G2_RUN_ID");
     if (!g2RunId || !*g2RunId || g2SidecarEventId == 0 ||
         (g2SidecarFragmentSide != "LF" && g2SidecarFragmentSide != "HF")) {
       cgmTerminateCode("[G2 sidecar] CGMF_G2_RUN_ID and valid event context are required");
-      return;
-    }
-
-    std::ofstream g2Output(g2SidecarPath, std::ios::out | std::ios::app);
-    if (!g2Output) {
-      cgmTerminateCode("[G2 sidecar] unable to open CGMF_G2_SIDECAR for append");
       return;
     }
 
@@ -1208,29 +1263,19 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
                 << neutronRecoilAfter[i][0] << "," << neutronRecoilAfter[i][1] << "," << neutronRecoilAfter[i][2] << "]}"
                 << "}\n";
     }
-    const std::string g2Payload = g2Records.str();
-    g2Output.write(g2Payload.data(), static_cast<std::streamsize>(g2Payload.size()));
-    g2Output.flush();
-    if (!g2Output) {
-      cgmTerminateCode("[G2 sidecar] write failure");
-      return;
-    }
+    g2NeutronPayload = g2Records.str();
   }
 
 
   // Optional complete mixed neutron/gamma/internal-conversion history.
   // One JSONL row per fragment, including fragments with no neutron emission.
+  std::string g2MixedPayload;
   const char *g2MixedPath = std::getenv("CGMF_G2_MIXED_HISTORY_SIDECAR");
   if (g2MixedPath && *g2MixedPath) {
     const char *g2RunId = std::getenv("CGMF_G2_RUN_ID");
     if (!g2RunId || !*g2RunId || g2SidecarEventId == 0 ||
         (g2SidecarFragmentSide != "LF" && g2SidecarFragmentSide != "HF")) {
       cgmTerminateCode("[G2 mixed history] CGMF_G2_RUN_ID and valid event context are required");
-      return;
-    }
-    std::ofstream mixedOutput(g2MixedPath, std::ios::out | std::ios::app);
-    if (!mixedOutput) {
-      cgmTerminateCode("[G2 mixed history] unable to open CGMF_G2_MIXED_HISTORY_SIDECAR");
       return;
     }
     std::ostringstream mixedRecord;
@@ -1330,14 +1375,11 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
       return;
     }
     mixedRecord << "]}\n";
-    const std::string mixedPayload = mixedRecord.str();
-    mixedOutput.write(mixedPayload.data(), static_cast<std::streamsize>(mixedPayload.size()));
-    mixedOutput.flush();
-    if (!mixedOutput) {
-      cgmTerminateCode("[G2 mixed history] write failure");
-      return;
-    }
+    g2MixedPayload = mixedRecord.str();
   }
+
+  g2StageAndCommitEvent(g2SidecarEventId, g2SidecarFragmentSide,
+                        g2NeutronPayload, g2MixedPayload);
 
 	return;
 	
