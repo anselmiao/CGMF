@@ -59,6 +59,7 @@ class MCPoint{
     j = j0;
     k = k0;
     e = e0;
+    l = false;
     status = MCPointStatus::Valid;
   }
   void setE(double e0){
@@ -68,6 +69,7 @@ class MCPoint{
     l = true;
   }
   void markUnmappable(){
+    l = false;
     status = MCPointStatus::Unmappable;
   }
   bool isValid(){
