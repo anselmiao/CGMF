@@ -73,6 +73,7 @@ class MatchedHistoryTests(unittest.TestCase):
         y = A.test_pairs(pairs, 3.0, 99, 123)
         self.assertEqual(x, y)
         self.assertEqual(x["matched_pairs"], 4)
+        self.assertIn("top_absolute_feature_correlations", x)
 
     def test_duplicate_side_rejected(self):
         r = row(1, "LF", 100, 40, 1, 8.0, 4, 1.0)
