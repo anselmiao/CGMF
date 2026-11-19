@@ -10,13 +10,61 @@ import sys
 from pathlib import Path
 
 
-def run_command(command, cwd, env, log_path):
+def run_command(command, cwd, env, log_path, log_prefix=b""):
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("wb") as log:
+        if log_prefix:
+            log.write(log_prefix)
         subprocess.run(
             command, cwd=cwd, env=env, stdout=log,
             stderr=subprocess.STDOUT, check=True
         )
+
+
+def resolve_discrete_level_file(cwd, env, binary):
+    """Mirror CGMF's current-directory-first data-file lookup for audit metadata."""
+    filename = "discreteLevels.dat"
+    local_file = cwd / filename
+    if local_file.is_file():
+        return local_file.resolve(), "current-directory"
+
+    configured_dir = env.get("CGMFDATA", "")
+    if configured_dir:
+        data_dir = Path(configured_dir)
+        if not data_dir.is_absolute():
+            data_dir = cwd / data_dir
+        candidate = data_dir / filename
+        return (candidate.resolve(), "CGMFDATA") if candidate.is_file() else (None, "CGMFDATA-missing")
+
+    config_header = binary.resolve().parents[2] / "libcgmf" / "cgmf_config.h"
+    macros = {}
+    if config_header.is_file():
+        for line in config_header.read_text(encoding="utf-8").splitlines():
+            parts = line.split(None, 2)
+            if len(parts) == 3 and parts[0] == "#define" and parts[1] in {"INSTALL_DATADIR", "BUILD_DATADIR"}:
+                macros[parts[1]] = parts[2].strip().strip('"')
+    for macro in ("INSTALL_DATADIR", "BUILD_DATADIR"):
+        directory = macros.get(macro)
+        if directory and Path(directory).is_dir():
+            candidate = Path(directory) / filename
+            if candidate.is_file():
+                return candidate.resolve(), macro
+    return None, "no-readable-candidate"
+
+
+def discrete_level_audit_prefix(cwd, env, binary):
+    path, source = resolve_discrete_level_file(cwd, env, binary)
+    lines = [
+        "[CGMF DATA AUDIT PYTHON] CGMFDATA="
+        + (env.get("CGMFDATA") if env.get("CGMFDATA") is not None else "<unset>"),
+        f"[CGMF DATA AUDIT PYTHON] selected_by={source}",
+    ]
+    if path is None:
+        lines.append("[CGMF DATA AUDIT PYTHON] selected_file=<unresolved>")
+    else:
+        lines.append(f"[CGMF DATA AUDIT PYTHON] selected_file={path}")
+        lines.append(f"[CGMF DATA AUDIT PYTHON] sha256={sha256(path)}")
+    return ("\\n".join(lines) + "\\n").encode("utf-8")
 
 
 def read_audit(path, seed_start, event_count):
@@ -113,6 +161,7 @@ def main():
         on_env["CGMF_G2_RUN_ID"] = run_id
         on_env["CGMF_RNG_AUDIT"] = "1"
         on_env["CGMF_RNG_AUDIT_FILE"] = str((on_dir / "rng-audit.tsv").resolve())
+        on_env["CGMF_DATA_AUDIT"] = "1"
 
         off_env = os.environ.copy()
         off_env.pop("CGMF_G2_SIDECAR", None)
@@ -130,7 +179,8 @@ def main():
 
         print(f"[{number}/{len(cases)}] {name}: ZAID={isotope}, En={energy} MeV, "
               f"event_ids=1..{event_count}, seeds={seed_start}..{seed_start + event_count - 1}", flush=True)
-        run_command(common, on_dir, on_env, on_dir / "sidecar-on.stdout")
+        data_audit_prefix = discrete_level_audit_prefix(on_dir, on_env, binary)
+        run_command(common, on_dir, on_env, on_dir / "sidecar-on.stdout", data_audit_prefix)
         run_command(common, off_dir, off_env, off_dir / "sidecar-off.stdout")
         run_command(common, baseline_dir, baseline_env, baseline_dir / "baseline.stdout")
 
