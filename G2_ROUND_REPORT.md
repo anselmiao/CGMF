@@ -1258,3 +1258,65 @@ Run 页面：https://github.com/anselmiao/CGMF/actions/runs/44614961934
 Run 页面：https://github.com/anselmiao/CGMF/actions/runs/44614976464
 
 本轮只追加 CI 日志诊断，没有修改模拟代码、物理规则、数据文件或 golden。
+
+
+## Run #119：⁸⁹Br 原始记录、最终派生记录与运行时修补代码的三方对照（COMPUTATION_VERIFIED / SOURCE_AUDITED）
+
+### 1. 官方 1.1.0 完整 blob 定点提取（COMPUTATION_VERIFIED）
+
+本轮直接读取官方 `lanl/CGMF` 的 `data/discreteLevels.dat` Git blob（SHA `dfd64cd3d7d890fec4b74e4bb82575ce0cc82e7c`，4,250,841 bytes），不依赖网页预览截断。按 ZA=35089 定位到第 50,378 行：
+
+```text
+89Br  35089   1
+ 0.000000   2.0  1  4.40000e+00  0
+```
+
+同一官方版本的 `data/ripl3-levels.dat` blob（SHA `c3c3a816730deef172ccbd11b0dfd58b6d197d90`，27,316,178 bytes）第 78,451 行：
+
+```text
+89Br   89   35    1    0    1    1    5.909000   11.981001
+  1   0.000000  -1.0  0   4.40E+00  0               (3/2-,5/2-)  2 =    100.0000 %B-     =     13.8000 %B-N
+```
+
+因此同一公开发布快照的 RIPL 输入数值字段是 spin=-1.0、parity=0，注释给出 (3/2-,5/2-)；专用文件写入 J=2.0、π=+1。半衰期均为 4.40 s。该结果复核了前轮字段差异，并补上了专用文件 blob 的直接提取证据。
+
+### 2. 官方专用文件头的来源声明（SOURCE_AUDITED）
+
+官方 `data/discreteLevels.dat` 文件头声明：
+- 文件由 RIPL-3 数据文件中的 evaluated discrete levels 生成；
+- 缺失 spin/parity assignments 按 CGMF manual（CPC）中描述的规则设置。
+
+这证明 2.0,+1 是预处理后文件中的已赋值记录；它不是 RIPL 原始数值字段，也不是 ENSDF 的直接原样抄录。
+
+### 3. 运行时 C++ 源码排除一个常见误归因（SOURCE_AUDITED）
+
+读取官方 `libcgmf/src/ripl2levels.cpp`：
+- `readDiscreteLevelData()` 从专用 `discreteLevels.dat` 读取固定宽度字段，并将 spin、parity 直接读入 Level 对象；
+- `fixLevels()` 只在基态 spin<0 或 parity==0 时进入缺失赋值处理；本条记录进入运行时文件时已经是 spin=2.0、parity=+1，不满足该条件；
+- 其 `riplGSonly()` 的偶奇默认规则，对 Z=35、A=89（N=54，奇 Z、偶 N）会给出 J=1/2、π=+1，而不是 J=2、π=+1；
+- 源码中另有 `riplSelectCandidate()` 辅助函数，其候选字符串解析逻辑对文本首项 `(3/2-,5/2-)` 将得到 J=3/2、π=-1；但本轮没有找到证据证明此函数是历史 Python 预处理 notebook 的实际实现或被该生成过程调用。
+
+因此，不能把最终 (2.0,+1) 归因于当前运行时 `fixLevels()/riplGSonly()`；也不能把它归因于“选择第一候选”。当前最稳妥定位仍是：该赋值在专用离散能级文件生成阶段已经形成，而该阶段的 Python notebook/class 尚未恢复。
+
+### 4. 转换器搜索结果与边界
+
+- 官方仓库 master、doc、rev2 三个分支的递归 Git tree 均未包含 `transformLevelDataFile.ipynb` 或 `Nucleus.py`。
+- 官方仓库按这两个路径查询提交历史均无记录。
+- GitHub 全局代码搜索目前只命中官方手册中对这两个文件的文字引用，没有找到可核验的公开副本。
+- 本轮没有成功读取 70 MB 的 `ripl3-levels-2015.dat`；该版本的 ⁸⁹Br 记录仍为 NOT READ，不能推断它与 2009/当前 RIPL 输入相同。
+- 1.0.0 与 1.1.0 两个官方专用文件版本中的 ⁸⁹Br 记录已在前轮核实完全相同；本轮进一步确认当前 1.1.0 官方 blob 的完整内容。
+
+### 5. 证据状态
+
+- 官方 1.1.0 RIPL 原始行与最终专用文件行：**COMPUTATION_VERIFIED**。
+- 专用文件头的 RIPL-3 生成来源声明：**SOURCE_AUDITED**。
+- 当前运行时 loader 直接读取已赋值字段、不会对本条记录执行缺失基态补值：**SOURCE_AUDITED**。
+- 运行时奇偶默认函数对 ⁸⁹Br 会给出 1/2+，与最终 2+ 不同：**COMPUTATION_VERIFIED（源码分支逻辑推演，非本条生成日志）**。
+- 最终 2+ 的历史 Python 预处理分支、随机种子、KCK 输入及记录级日志：**BLOCKED**。
+- RIPL-2015 文件中的 ⁸⁹Br 行：**BLOCKED / NOT READ**。
+
+### 6. 下一步
+
+不再重复检索官方仓库中已确认不存在的 notebook 路径。下一步转为核对同一原始 RIPL 记录的字段语义与 RIPL-2015/更新版数据记录；并寻找 1.0.0 发布包、OSTI 技术报告附件或其他可公开的历史发行归档。若生成器仍不可获得，则将 (2.0,+1) 保留为“官方发布的历史预处理值，生成细节不可追溯”，并将 ENSDF/RIPL 后续评估值作为独立对照，不覆盖生产库。
+
+本轮只做 Git blob、官方文档与 C++ 源码审计，没有修改物理选择规则、数据库、golden、模拟代码或事件矩阵。
