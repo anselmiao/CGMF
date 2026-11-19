@@ -1185,3 +1185,60 @@ CGMF 1.1.0 的发布提交说明 `discreteLevels.dat` 扩展为包含全部同�
 优先从 1.0.0 发布包、文档构建源和作者可公开的辅助仓库寻找 `transformLevelDataFile.ipynb` / `Nucleus.py` 的可核验副本；并尝试对同一提交中的 `ripl3-levels-2015.dat` 做定点读取，核对其 ⁸⁹Br 记录。若工具版本或输入记录仍无法恢复，则把 2+ 标记为“可定位到 1.0.0 首发生成文件、具体生成算法不可追溯”的历史数据产物，不改生产数据库，不以 ENSDF 候选值静默覆盖。
 
 本轮只做 Git 历史与源数据审计，不修改物理代码、离散能级数据、golden 或事件矩阵。
+
+
+## Run #117：RIPL 原始记录—手册规则冲突点与 CI #221 结果（SOURCE_AUDITED / COMPUTATION_VERIFIED；生成器仍 BLOCKED）
+
+### 1. CGMF 1.0.0 的 RIPL 原始 ⁸⁹Br 记录再次定点读取
+
+直接读取官方 lanl/CGMF 1.0.0 的 data/ripl3-levels.dat blob（SHA c3c3a816730deef172ccbd11b0dfd58b6d197d90，27,316,178 bytes），按文本定位到 ⁸⁹Br 条目：
+
+```text
+89Br   89   35    1    0    1    1    5.909000   11.981001
+  1   0.000000  -1.0  0   4.40E+00  0               (3/2-,5/2-)  2 =    100.0000 %B-     =     13.8000 %B-N
+```
+
+记录中的数值 spin/parity 字段仍是 -1.0, 0；括号中的 (3/2-,5/2-) 是文字候选标签，不是前面两个数值字段的值。该行的半衰期字段与专用文件的 4.40 s 一致。
+
+### 2. 手册规则与最终数据之间存在尚未解释的冲突（SOURCE_AUDITED）
+
+同一 1.0.0 发布快照的 doc/rtd/discreteLevels.rst 说明：
+- spin 或 parity 缺失/未指派时，Jπ 按 KCK 系统处理，缺失宇称按均匀分布随机选择；
+- 如果 RIPL 为不确定能级给出多个 Jπ 选项，则选择第一项。
+
+但该记录的括号首选项是 3/2-，而最终 data/discreteLevels.dat 写入的是 J=2, π=+1。这两者不一致。因此目前不能简单把最终值解释成“选了第一候选”；也不能确认此记录是否被解析器识别为多候选记录，还是因数值字段未指派而走 KCK/随机补值分支。官方文档是规则说明，不是生成器源代码或逐记录执行日志。
+
+### 3. RIPL-2015 文件的读取限制（BLOCKED / NOT READ）
+
+data/ripl3-levels-2015.dat 在 1.0.0 tree 中确实存在，大小 70,158,325 bytes，blob SHA 3be0a27558c793837f6c3cc5deb45ea1deee7259。当前 GitHub blob 读取接口对响应长度限制为 67,108,864 bytes，完整读取请求被拒绝。本轮没有取得该文件中的 ⁸⁹Br 记录，故不能声称 2015 文件与 ripl3-levels.dat 的记录一致或不同。
+
+### 4. GitHub Actions Run #221 实际结果（COMPUTATION_VERIFIED）
+
+检查本分支提交 4d2f3f8d6729262693ec192fc530e8c1635b4e4b 对应的 Actions Run 44614961934：
+- Configure：通过；
+- Build：通过；
+- Native CGMF test suite：失败，CTest 99 项中 76% 通过、24 项失败（其中执行测试失败会导致对应 diff 测试 Not Run）；
+- G2 三层分析、条件历史分析、matched-history permutation、event-state model competition、fragment-state ablation、RNG seed matrix validator 等 Python 合成夹具单元测试：均通过；
+- 完整 G2 neutron/mixed-history sidecar matrix：未能成功完成，因为其前置 native test suite 已失败；
+- 后续基于代表性 CI 模拟的分析步骤被跳过；
+- native regression baseline enforcement 因前面的回归结果失败而失败，workflow 总结为 failure。
+
+失败的事件执行日志仍显示离散桥接处没有可映射状态。例如：
+- ⁸⁹Br event 34：初态 J=3、π=+1，唯一离散态候选因 parity 被拒绝；
+- ¹³⁶I、¹⁰⁵Nb、⁹⁶Y、¹³⁷I、¹³²I 等其他事件出现 angular-momentum rejection。
+这些是当前分支 CI 的真实运行结果，不代表核数据已被独立评价，也不应通过放宽选择规则或更新 golden 来消除失败。
+
+Run 页面：https://github.com/anselmiao/CGMF/actions/runs/44614961934
+
+### 5. 状态与下一步
+
+- 1.0.0 RIPL 源文件 ⁸⁹Br 数值字段与候选文字：COMPUTATION_VERIFIED。
+- 官方手册关于 KCK/随机宇称与多候选首项规则：SOURCE_AUDITED。
+- 手册所述“多候选取首项”不能直接解释最终 J=2、π=+1：COMPUTATION_VERIFIED（字段不一致）。
+- 2015 RIPL 文件中的 ⁸⁹Br 记录：BLOCKED / NOT READ（接口响应大小限制）。
+- 生成器对本条记录实际走过的分支、随机数状态和具体来源：BLOCKED。
+- Run #221 的构建、单元测试、CTest 和 G2 matrix 先后状态：COMPUTATION_VERIFIED。
+
+下一步应避免继续只查手册文字。优先找 RIPL-2015 文件的可分块/本地镜像读取方式，或获取其压缩发行包后只提取 Z=35、A=89；同时检查 CGMF 1.0.0 文档构建源/作者公开仓库是否保留 notebook。CI 方面应从 ⁸⁹Br event 34 与其他角动量失败事件的最小复现入手，先区分数据映射问题与物理选择规则问题；不得先改选择规则、数据库或 golden。
+
+本轮只做数据、文档和 CI 结果审计，没有修改物理代码、输入数据库、golden 或事件矩阵。
