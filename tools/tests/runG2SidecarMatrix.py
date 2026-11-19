@@ -65,14 +65,16 @@ def main():
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--matrix", type=Path, required=True)
     parser.add_argument("--validator", type=Path, required=True)
+    parser.add_argument("--mixed-validator", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
 
     binary = args.binary.resolve()
     validator = args.validator.resolve()
+    mixed_validator = args.mixed_validator.resolve()
     matrix_path = args.matrix.resolve()
     output_root = args.output_dir.resolve()
-    for required_path in (binary, validator, matrix_path):
+    for required_path in (binary, validator, mixed_validator, matrix_path):
         if not required_path.is_file():
             raise FileNotFoundError(required_path)
     matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
@@ -107,18 +109,21 @@ def main():
 
         on_env = os.environ.copy()
         on_env["CGMF_G2_SIDECAR"] = str((on_dir / "neutron-transition.jsonl").resolve())
+        on_env["CGMF_G2_MIXED_HISTORY_SIDECAR"] = str((on_dir / "mixed-history.jsonl").resolve())
         on_env["CGMF_G2_RUN_ID"] = run_id
         on_env["CGMF_RNG_AUDIT"] = "1"
         on_env["CGMF_RNG_AUDIT_FILE"] = str((on_dir / "rng-audit.tsv").resolve())
 
         off_env = os.environ.copy()
         off_env.pop("CGMF_G2_SIDECAR", None)
+        off_env.pop("CGMF_G2_MIXED_HISTORY_SIDECAR", None)
         off_env.pop("CGMF_G2_RUN_ID", None)
         off_env["CGMF_RNG_AUDIT"] = "1"
         off_env["CGMF_RNG_AUDIT_FILE"] = str((off_dir / "rng-audit.tsv").resolve())
 
         baseline_env = os.environ.copy()
         baseline_env.pop("CGMF_G2_SIDECAR", None)
+        baseline_env.pop("CGMF_G2_MIXED_HISTORY_SIDECAR", None)
         baseline_env.pop("CGMF_G2_RUN_ID", None)
         baseline_env.pop("CGMF_RNG_AUDIT", None)
         baseline_env.pop("CGMF_RNG_AUDIT_FILE", None)
@@ -130,6 +135,7 @@ def main():
         run_command(common, baseline_dir, baseline_env, baseline_dir / "baseline.stdout")
 
         jsonl = on_dir / "neutron-transition.jsonl"
+        mixed_jsonl = on_dir / "mixed-history.jsonl"
         history_on = on_dir / "histories.cgmf.0"
         history_off = off_dir / "histories.cgmf.0"
         history_baseline = baseline_dir / "histories.cgmf.0"
@@ -138,13 +144,20 @@ def main():
         stdout_baseline = baseline_dir / "baseline.stdout"
         audit_on = on_dir / "rng-audit.tsv"
         audit_off = off_dir / "rng-audit.tsv"
-        for path in (jsonl, history_on, history_off, history_baseline,
+        for path in (jsonl, mixed_jsonl, history_on, history_off, history_baseline,
                      stdout_on, stdout_off, stdout_baseline, audit_on, audit_off):
             if not path.is_file():
                 raise FileNotFoundError(f"{name}: expected output missing: {path}")
 
         subprocess.run(
             [sys.executable, str(validator), str(jsonl),
+             "--expected-events", str(event_count),
+             "--run-id", run_id],
+            cwd=case_root, check=True
+        )
+        subprocess.run(
+            [sys.executable, str(mixed_validator), str(mixed_jsonl),
+             "--neutron-jsonl", str(jsonl),
              "--expected-events", str(event_count),
              "--run-id", run_id],
             cwd=case_root, check=True
@@ -172,6 +185,7 @@ def main():
             "seed_start": seed_start, "seed_end": seed_start + event_count - 1,
             "event_id_start": 1, "event_id_end": event_count, "events_run": event_count,
             "neutron_records": len(records),
+            "mixed_fragment_summaries": len(mixed_jsonl.read_text(encoding="utf-8").splitlines()),
             "emitting_events": len({row["event_id"] for row in records}),
             "LF_records": sides["LF"], "HF_records": sides["HF"],
             "event_fragment_groups": len({(row["event_id"], row["fragment_side"]) for row in records}),
@@ -200,7 +214,7 @@ def main():
         "",
         f"- Cases passed: {len(results)}",
         f"- Events per execution mode: {summary['total_events_per_mode']}",
-        "- For every case: JSONL validation, RNG audit coverage, histories/stdout bytewise "
+        "- For every case: legacy and mixed-history JSONL validation, RNG audit coverage, histories/stdout bytewise "
         "comparison (on/off/baseline), and RNG audit bytewise comparison (on/off).",
         "",
         "| Case | ZAID | En (MeV) | Event IDs | RNG seeds | Neutron records | LF | HF |",
