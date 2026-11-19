@@ -279,3 +279,46 @@ CI 状态：GitHub Actions 工具当前未返回新 SHA-256 门禁提交对应�
 - 非有限输入保护与补充测试：`b4f9d80aed5d0e2a7792e29e78294840b2d7dce9`、`fb55229cc669c7ffea5b2108925b8c991a24d711`
 
 本轮没有改变模拟算法或生成新事件。物理桥接核仍为 BLOCKED；当前只交付可独立验证的候选筛选基础函数。
+
+
+
+## Run #99：MCPoint 显式状态与级联失败保护（SOURCE_AUDITED + IMPLEMENTED；CI PENDING）
+
+### 1. MCPoint 状态类型
+
+在 `libcgmf/include/mchf.h` 中新增：
+
+- `Uninitialized`：默认构造、尚未赋予有效状态；
+- `Valid`：由构造函数或 `set()` 明确赋值；
+- `Unmappable`：调用方明确标记为无法映射。
+
+提供 `isValid()`、`isUnmappable()`、`getStatus()`、`markUnmappable()`。重新调用 `set()` 会恢复为 Valid 并清除离散态标记。该状态随 MCPoint 拷贝进入 MCHistory，不需要使用 `k=-1` 伪装失败状态。
+
+### 2. 主循环保护
+
+在 `libcgmf/src/specmc.cpp` 中：
+- `mcHistoryLoop()` 在接收 `mcFindNext()` 返回值后、任何扰动或 history 写入前检查状态；非 Valid 立即通过现有 `cgmTerminateCode()` 以非零退出，避免继续记录伪造事件。
+- lower-cut 回退在访问最高离散能级前检查 `ndisc>0`；回退候选索引在解引用前检查范围，失败则标记 Unmappable。
+- `mcFindNext()` 在离散能级表为空时返回 Unmappable；最近 J 回退的索引也在解引用前做范围检查。
+- 级联返回的最终离散态索引在写入终态前检查范围。
+
+**失败语义：** 当前 `cgmTerminateCode()` 会释放全局存储并 `exit(-1))，所以这里采用 fail-fast，而不是跳过单个碎片后继续运行。若 LF 已经写出 sidecar 而 HF 随后失败，文件可能留下不完整事件对；该运行必须按失败处理，不能把已有片段当成完整数据。现有 LF/HF 覆盖验证器是识别不完整输出的下游门禁。若未来要求逐事件跳过并继续模拟，必须另行实现事件级事务/回滚和明确的事件失败输出契约。
+
+### 3. 测试与 CI 修复
+
+新增 `mcpoint-status` CTest，覆盖默认 Uninitialized、Valid、离散标记、Unmappable、拷贝传播、MCHistory 保存状态及重新 set 恢复 Valid。
+
+Run #125（workflow run ID `44576007076`）曾在 Configure 阶段失败。日志确认原因不是 C++ 编译，而是两个测试 CMakeLists 位于子目录，却引用了父目录的源文件名，导致找不到：
+- `gamma-transition-selection.cpp`
+- `mcpoint-status.cpp`
+
+已将两个目标源路径分别修正为 `../gamma-transition-selection.cpp` 和 `../mcpoint-status.cpp`。该修正后的提交尚未取得新 CI 运行结果；不得把 Run #125 记为代码测试失败或通过，它只验证了错误的 CMake 源文件路径配置。
+
+### 4. 当前边界
+
+- 已实现 MCPoint 显式状态表示和无效索引保护。
+- 仍未把“没有物理上有依据的桥接多极性/权重”转化为真实候选选择逻辑；当前 `mcFindNext()` 与 lower-cut 的历史 E1/nearest-J 选择行为仍在。新增状态检查不会自动解决其物理近似。
+- 物理桥接核及赋权仍为 BLOCKED。
+- 需要新 CI 先通过 Configure/Build、MCPoint 状态测试、selection-rule 测试、原生回归和 G2 矩阵；随后才进行两条回退入口的统一候选接口接线。
+
+本轮未修改黄金文件、未改变跃迁抽样分布、未生成新物理事件。
