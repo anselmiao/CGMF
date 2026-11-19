@@ -797,3 +797,10 @@ CGMF 官方用户手册明确说明，运行用 `cgmfDiscreteLevels.dat` 从 RIP
 - 下一项：读取该提交触发的 CI build 结果；若编译通过，检查 artifact 中 `cf252-sf/on/sidecar-on.stdout` 的 Python SHA、C++ opened_file、ZAID 35089/53132 能级快照。然后再决定是否以同样开关执行针对性的单事件复现；不运行完整矩阵，不触碰旧 golden。
 
 本轮为诊断代码/测试日志辅助代码改动，无模拟物理规则改动。
+
+
+### Run #110 追加修正：诊断行与非干扰比较隔离
+
+在首次提交诊断实现后，发现原矩阵脚本直接比较 on/off/baseline 的完整 stdout；由于诊断仅在 on 模式开启，诊断行会造成预期的日志差异。已在 `tools/tests/runG2SidecarMatrix.py` 增加 `stdout_without_data_audit()`：仅从 stdout 非干扰比较输入中剔除以 `[CGMF DATA AUDIT` 开头的来源诊断行，其他输出逐字节比较规则不变。原始 stdout 文件仍完整保留 Python SHA 预检和 C++ 实际打开路径/能级快照，原始日志 SHA-256 也仍对完整文件计算。
+
+这项修正避免把只读 provenance 文本误判为模拟行为差异；并不放宽或跳过其他 stdout 内容比较。修正提交后会触发新的 CI；前一轮 CI 运行的是隔离修正前的提交，不能代表最终版本。
