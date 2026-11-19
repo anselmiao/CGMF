@@ -19,7 +19,7 @@ FEATURES = [
 COVARIATES = [
     "excitation_L_MeV", "excitation_H_MeV",
     "spin_L_stored", "spin_H_stored",
-    "momentum_L_MeV_c", "momentum_H_MeV_c",
+    "mean_fragment_momentum_MeV_c", "momentum_closure_MeV_c",
 ]
 
 
@@ -118,12 +118,16 @@ def build_records(events):
             continue
         lf, hf = sides["LF"], sides["HF"]
         L, H = lf["initial_fragment"], hf["initial_fragment"]
-        pL = math.sqrt(sum(float(x)**2 for x in L["pre_fragment_momentum_MeV_c"]))
-        pH = math.sqrt(sum(float(x)**2 for x in H["pre_fragment_momentum_MeV_c"]))
+        pL_vec = [float(x) for x in L["pre_fragment_momentum_MeV_c"]]
+        pH_vec = [float(x) for x in H["pre_fragment_momentum_MeV_c"]]
+        pL = math.sqrt(sum(x*x for x in pL_vec))
+        pH = math.sqrt(sum(x*x for x in pH_vec))
+        momentum_closure = math.sqrt(sum((a+b)**2 for a,b in zip(pL_vec,pH_vec)))
         key = (L["A"], L["Z"], H["A"], H["Z"], L["parity_index"], H["parity_index"])
         cov = [
             float(L["excitation_MeV"]), float(H["excitation_MeV"]),
-            float(L["spin_stored"]), float(H["spin_stored"]), pL, pH,
+            float(L["spin_stored"]), float(H["spin_stored"]),
+            0.5*(pL+pH), momentum_closure,
         ]
         records.append({
             "event_id": eid, "group": key, "cov": cov,
