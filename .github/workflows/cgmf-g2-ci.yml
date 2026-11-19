@@ -6,6 +6,7 @@ on:
     branches:
       - qi/g2-neutron-transition-history
       - qi/g2-unified-history-v1
+      - qi/fix-discrete-start-index
   pull_request:
   workflow_dispatch:
 
