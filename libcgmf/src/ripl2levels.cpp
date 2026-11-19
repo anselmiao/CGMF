@@ -27,7 +27,6 @@ using namespace std;
 #include "ripl2levels.h"
 #include "terminate.h"
 #include "config.h"
-#include "cgmf_config.h"
 
 static void riplSelectCandidate  (string, double *, int *);
 static int  riplFixTransition    (int *, double *, double *, int k , Level * );
@@ -109,12 +108,6 @@ void readDiscreteLevelData () {
 		cerr << "[CGMF DATA AUDIT] datadir=" << datadir << endl;
 		cerr << "[CGMF DATA AUDIT] CGMFDATA="
 		     << ((cgmfDataEnv != NULL) ? cgmfDataEnv : "<unset>") << endl;
-		ifstream installProbe(string(INSTALL_DATADIR) + "/" + DISCRETEDATA);
-		ifstream buildProbe(string(BUILD_DATADIR) + "/" + DISCRETEDATA);
-		cerr << "[CGMF DATA AUDIT] INSTALL_DATADIR=" << INSTALL_DATADIR
-		     << " discrete_file_exists=" << installProbe.good() << endl;
-		cerr << "[CGMF DATA AUDIT] BUILD_DATADIR=" << BUILD_DATADIR
-		     << " discrete_file_exists=" << buildProbe.good() << endl;
 	}
 
 	int a=0, z=0, nol=0, nc=0, nmax=0;
