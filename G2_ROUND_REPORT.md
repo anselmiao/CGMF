@@ -1242,3 +1242,19 @@ Run 页面：https://github.com/anselmiao/CGMF/actions/runs/44614961934
 下一步应避免继续只查手册文字。优先找 RIPL-2015 文件的可分块/本地镜像读取方式，或获取其压缩发行包后只提取 Z=35、A=89；同时检查 CGMF 1.0.0 文档构建源/作者公开仓库是否保留 notebook。CI 方面应从 ⁸⁹Br event 34 与其他角动量失败事件的最小复现入手，先区分数据映射问题与物理选择规则问题；不得先改选择规则、数据库或 golden。
 
 本轮只做数据、文档和 CI 结果审计，没有修改物理代码、输入数据库、golden 或事件矩阵。
+
+
+## Run #118：PR 侧 CI 的 G2 sidecar matrix 首个 case 失败定位（COMPUTATION_VERIFIED）
+
+对 PR #3 对应的 Actions Run 222（Run ID 44614976464）进一步读取 job log：
+- Build 与前置 Python 单元测试、31 组 RNG seed range validator 均通过；
+- G2 sidecar matrix 在第一个 case 即停止：Cf-252 spontaneous fission，ZAID=98252，En=0.0 MeV，event_ids=1..200，seeds=1..200；
+- runG2SidecarMatrix.py 调用 cgmf.x 生成 sidecar-on histories 时，进程退出码为 255，Python 抛出 CalledProcessError；
+- 该轮因此没有进入后续 30 个矩阵 case；矩阵产物只包含失败前/失败时可保存的诊断文件，不能视为完整数据集；
+- native regression baseline enforcement 因前置 matrix 失败而失败。
+
+该日志片段尚未给出 cgmf.x 的完整 stderr 根因；需要读取本次 artifact cgmf-g2-mixed-history-matrix（artifact ID 14572684411）中的 sidecar-on.stdout/stderr、data audit 和配置文件，才能判断是否与前述 native CTest 的离散桥接失败同源。当前不能把 exit 255 直接归因于 ⁸⁹Br，也不能认定是 sidecar 写入逻辑本身故障。
+
+Run 页面：https://github.com/anselmiao/CGMF/actions/runs/44614976464
+
+本轮只追加 CI 日志诊断，没有修改模拟代码、物理规则、数据文件或 golden。
