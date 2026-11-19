@@ -100,6 +100,20 @@ void readDiscreteLevelData () {
 		return;
 	}
 
+	const string openedFile = str;
+	const bool dataAudit = (getenv("CGMF_DATA_AUDIT") != NULL);
+	if (dataAudit) {
+		const char *cgmfDataEnv = getenv("CGMFDATA");
+		cerr << "[CGMF DATA AUDIT] opened_file=" << openedFile << endl;
+		cerr << "[CGMF DATA AUDIT] datadir=" << datadir << endl;
+		cerr << "[CGMF DATA AUDIT] CGMFDATA="
+		     << ((cgmfDataEnv != NULL) ? cgmfDataEnv : "<unset>") << endl;
+		cerr << "[CGMF DATA AUDIT] INSTALL_DATADIR=" << INSTALL_DATADIR
+		     << " exists=" << checkdatapath(INSTALL_DATADIR) << endl;
+		cerr << "[CGMF DATA AUDIT] BUILD_DATADIR=" << BUILD_DATADIR
+		     << " exists=" << checkdatapath(BUILD_DATADIR) << endl;
+	}
+
 	int a=0, z=0, nol=0, nc=0, nmax=0;
 	int c=0;
 
@@ -194,6 +208,29 @@ void readDiscreteLevelData () {
 
 		c++;
 
+	}
+
+	if (dataAudit) {
+		const int auditZAIDs[] = {35089, 53132};
+		for (unsigned int target = 0; target < sizeof(auditZAIDs)/sizeof(auditZAIDs[0]); ++target) {
+			const int wanted = auditZAIDs[target];
+			bool found = false;
+			for (int nucleus = 0; nucleus < c; ++nucleus) {
+				if (zaidIndex[nucleus] != wanted) continue;
+				found = true;
+				cerr << "[CGMF DATA AUDIT] ZAID=" << wanted
+				     << " ndisc=" << numberLevels[nucleus] << endl;
+				for (int level = 0; level < numberLevels[nucleus]; ++level) {
+					const Level &entry = allLevels[nucleus][level];
+					cerr << "[CGMF DATA AUDIT] ZAID=" << wanted
+					     << " level_index=" << level
+					     << " energy_MeV=" << setprecision(12) << entry.energy
+					     << " spin=" << entry.spin
+					     << " parity=" << entry.parity << endl;
+				}
+			}
+			if (!found) cerr << "[CGMF DATA AUDIT] ZAID=" << wanted << " not_in_database" << endl;
+		}
 	}
 
 	fp.close();
