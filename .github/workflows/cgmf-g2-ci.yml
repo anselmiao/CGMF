@@ -175,3 +175,12 @@ jobs:
           name: cgmf-build-test-logs
           path: build/Testing/Temporary/
           if-no-files-found: ignore
+
+      - name: Save native regression outputs for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cgmf-native-regression-outputs
+          path: |
+            build/utils/cgmf/tests/**/histories.cgmf.serial.0
+          if-no-files-found: ignore
