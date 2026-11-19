@@ -69,7 +69,9 @@ void set_time_coincidence_window(double timew){
   time_coincidence_window=timew;
 }
 
-double gammaTimeStamp [ MAX_NUMBER_GAMMAS ];
+// Indexed by mixed hs[] transition position (neutrons + gammas + IC), not gamma count.
+double gammaTimeStamp [ MAX_CASCADE ];
+static bool gammaTimeStampValid [ MAX_CASCADE ];
 
 static unsigned long long g2SidecarEventId = 0;
 static std::string g2SidecarFragmentSide;
@@ -156,6 +158,10 @@ void specMCMainFission(fissionEventType *fe)
   int    initP = fe->parity;
 
   specMCalloc();
+
+  // Timestamp metadata follows the mixed transition history index.
+  std::fill_n(gammaTimeStamp, MAX_CASCADE, 0.0);
+  std::fill_n(gammaTimeStampValid, MAX_CASCADE, false);
 
   // set initial charge, mass and excitation energy of decaying fission fragment
 	ncl[0].za.setZA (Z, A);
@@ -609,7 +615,9 @@ int mcGammaCascade(int c0, int i0, double **spc)
         bool ic = false;
         if( INCLUDE_INTERNAL_CONVERSION && (rng_cgm() > ncl[c0].lev[i0].gratio[j]) )
 	  ic = true;
-	gammaTimeStamp[np]=tstamp;
+	if (np < 0 || np >= MAX_CASCADE) cgmTerminateCode("[G2 history] timestamp index out of range");
+	gammaTimeStamp[np] = tstamp;
+	gammaTimeStampValid[np] = true;
         /*** point next state */
         mnext.set(c0,ncl[c0].lev[i1].parity,(int)ncl[c0].lev[i1].spin,i1,ncl[c0].lev[i1].energy);
         mnext.setDiscrete();
@@ -1123,6 +1131,129 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
     g2Output.flush();
     if (!g2Output) {
       cgmTerminateCode("[G2 sidecar] write failure");
+      return;
+    }
+  }
+
+
+  // Optional complete mixed neutron/gamma/internal-conversion history.
+  // One JSONL row per fragment, including fragments with no neutron emission.
+  const char *g2MixedPath = std::getenv("CGMF_G2_MIXED_HISTORY_SIDECAR");
+  if (g2MixedPath && *g2MixedPath) {
+    const char *g2RunId = std::getenv("CGMF_G2_RUN_ID");
+    if (!g2RunId || !*g2RunId || g2SidecarEventId == 0 ||
+        (g2SidecarFragmentSide != "LF" && g2SidecarFragmentSide != "HF")) {
+      cgmTerminateCode("[G2 mixed history] CGMF_G2_RUN_ID and valid event context are required");
+      return;
+    }
+    std::ofstream mixedOutput(g2MixedPath, std::ios::out | std::ios::app);
+    if (!mixedOutput) {
+      cgmTerminateCode("[G2 mixed history] unable to open CGMF_G2_MIXED_HISTORY_SIDECAR");
+      return;
+    }
+    std::ostringstream mixedRecord;
+    mixedRecord << std::setprecision(17);
+    mixedRecord << "{\"schema\":\"cgmf.g2.mixed-history.v1\","
+                << "\"run_id\":\"" << g2JsonEscape(g2RunId) << "\","
+                << "\"event_id\":" << g2SidecarEventId << ","
+                << "\"fragment_side\":\"" << g2SidecarFragmentSide << "\","
+                << "\"initial_fragment\":{\"Z\":" << fe->Z
+                << ",\"A\":" << fe->A
+                << ",\"excitation_MeV\":" << fe->U
+                << ",\"spin_stored\":" << fe->spin
+                << ",\"parity_index\":" << fe->parity
+                << ",\"pre_fragment_momentum_MeV_c\":["
+                << fe->preFragmentMomentum[0] << "," << fe->preFragmentMomentum[1] << ","
+                << fe->preFragmentMomentum[2] << "]},"
+                << "\"transition_count\":" << (np > 0 ? np-1 : 0) << ","
+                << "\"transitions\":[";
+
+    int mixedNeutronIndex = 0;
+    int mixedGammaIndex = 0;
+    for (int i=0; i<np-1; ++i) {
+      const int particleId = hs[i].getIndex();
+      const MCPoint parent = hs[i].getMCPoint();
+      const MCPoint daughter = hs[i].getDaughterMCPoint();
+      const int parentN = parent.getN();
+      const int daughterN = daughter.getN();
+      if (parentN < 0 || daughterN < 0 ||
+          parentN >= MAX_COMPOUND || daughterN >= MAX_COMPOUND) {
+        cgmTerminateCode("[G2 mixed history] invalid parent/daughter nucleus index");
+        return;
+      }
+      const char *particleType = "internal_conversion";
+      if (particleId == neutron) particleType = "neutron";
+      else if (particleId == gammaray) particleType = "gamma";
+      else if (particleId != unknown) {
+        cgmTerminateCode("[G2 mixed history] unsupported particle identifier");
+        return;
+      }
+      if (i > 0) mixedRecord << ",";
+      mixedRecord << "{\"emission_index\":" << i
+                  << ",\"particle_type\":\"" << particleType << "\""
+                  << ",\"energy_cm_MeV\":" << hs[i].getEnergy()
+                  << ",\"parent_state\":{\"Z\":" << ncl[parentN].za.getZ()
+                  << ",\"A\":" << ncl[parentN].za.getA()
+                  << ",\"excitation_MeV\":" << parent.getE()
+                  << ",\"spin_index\":" << parent.getJ()
+                  << ",\"parity\":" << parent.getP()
+                  << ",\"discrete\":" << (parent.ifDiscrete() ? "true" : "false") << "}"
+                  << ",\"daughter_state\":{\"Z\":" << ncl[daughterN].za.getZ()
+                  << ",\"A\":" << ncl[daughterN].za.getA()
+                  << ",\"excitation_MeV\":" << daughter.getE()
+                  << ",\"spin_index\":" << daughter.getJ()
+                  << ",\"parity\":" << daughter.getP()
+                  << ",\"discrete\":" << (daughter.ifDiscrete() ? "true" : "false") << "}";
+      const bool timestampValid = gammaTimeStampValid[i];
+      mixedRecord << ",\"timestamp_valid\":" << (timestampValid ? "true" : "false");
+      if (timestampValid) mixedRecord << ",\"timestamp_s\":" << gammaTimeStamp[i];
+
+      if (particleId == neutron) {
+        if (mixedNeutronIndex >= fe->nu) {
+          cgmTerminateCode("[G2 mixed history] neutron history/kinematics count mismatch");
+          return;
+        }
+        mixedRecord << ",\"neutron_index\":" << mixedNeutronIndex
+                    << ",\"neutron_kinematics\":{\"energy_cm_MeV\":" << fe->cmNeutronEnergies[mixedNeutronIndex]
+                    << ",\"energy_lab_MeV\":" << fe->neutronEnergies[mixedNeutronIndex]
+                    << ",\"direction_cm\":[" << fe->cmNeutronDircosu[mixedNeutronIndex] << ","
+                    << fe->cmNeutronDircosv[mixedNeutronIndex] << "," << fe->cmNeutronDircosw[mixedNeutronIndex] << "]"
+                    << ",\"direction_lab\":[" << fe->neutronDircosu[mixedNeutronIndex] << ","
+                    << fe->neutronDircosv[mixedNeutronIndex] << "," << fe->neutronDircosw[mixedNeutronIndex] << "]"
+                    << ",\"recoil_before_MeV_c\":[" << neutronRecoilBefore[mixedNeutronIndex][0] << ","
+                    << neutronRecoilBefore[mixedNeutronIndex][1] << "," << neutronRecoilBefore[mixedNeutronIndex][2] << "]"
+                    << ",\"recoil_after_MeV_c\":[" << neutronRecoilAfter[mixedNeutronIndex][0] << ","
+                    << neutronRecoilAfter[mixedNeutronIndex][1] << "," << neutronRecoilAfter[mixedNeutronIndex][2] << "]}";
+        ++mixedNeutronIndex;
+      } else if (particleId == gammaray) {
+        if (mixedGammaIndex >= fe->nug) {
+          cgmTerminateCode("[G2 mixed history] gamma history/kinematics count mismatch");
+          return;
+        }
+        mixedRecord << ",\"gamma_index\":" << mixedGammaIndex
+                    << ",\"gamma_kinematics\":{\"energy_cm_MeV\":" << fe->cmPhotonEnergies[mixedGammaIndex]
+                    << ",\"energy_lab_MeV\":" << fe->photonEnergies[mixedGammaIndex]
+                    << ",\"direction_cm\":[" << fe->cmPhotonDircosu[mixedGammaIndex] << ","
+                    << fe->cmPhotonDircosv[mixedGammaIndex] << "," << fe->cmPhotonDircosw[mixedGammaIndex] << "]"
+                    << ",\"direction_lab\":[" << fe->photonDircosu[mixedGammaIndex] << ","
+                    << fe->photonDircosv[mixedGammaIndex] << "," << fe->photonDircosw[mixedGammaIndex] << "]"
+                    << ",\"photon_age_s\":" << fe->photonAges[mixedGammaIndex] << "}";
+        ++mixedGammaIndex;
+      } else {
+        mixedRecord << ",\"internal_conversion\":true";
+      }
+      mixedRecord << "}";
+    }
+    if (mixedNeutronIndex != fe->nu || mixedGammaIndex != fe->nug) {
+      cgmTerminateCode("[G2 mixed history] mixed history/particle-array count mismatch");
+      return;
+    }
+    mixedRecord << "]}\n";
+    const std::string mixedPayload = mixedRecord.str();
+    mixedOutput.write(mixedPayload.data(), static_cast<std::streamsize>(mixedPayload.size()));
+    mixedOutput.flush();
+    if (!mixedOutput) {
+      cgmTerminateCode("[G2 mixed history] write failure");
       return;
     }
   }
