@@ -19,6 +19,12 @@ const int MAX_SIMULATION =      1 ;  /* number of Monte Carlo Simulations */
 /****************************/
 /*    Monte Carlo Index     */
 /****************************/
+enum class MCPointStatus {
+  Uninitialized,
+  Valid,
+  Unmappable
+};
+
 class MCPoint{
  private:
   int    n;    // nucleus index
@@ -27,6 +33,7 @@ class MCPoint{
   int    k;    // excitation index
   double e;    // excitation energy
   bool   l;    // true if discrete level
+  MCPointStatus status;
  public:
   MCPoint(){
     n  = 0;
@@ -35,6 +42,7 @@ class MCPoint{
     k  = 0;
     e  = 0.0;
     l  = false;
+    status = MCPointStatus::Uninitialized;
   }
   MCPoint(int n0, int p0, int j0, int k0, double e0){
     n = n0;
@@ -43,6 +51,7 @@ class MCPoint{
     k = k0;
     e = e0;
     l = false;
+    status = MCPointStatus::Valid;
   }
   void set(int n0, int p0, int j0, int k0, double e0){
     n = n0;
@@ -50,12 +59,25 @@ class MCPoint{
     j = j0;
     k = k0;
     e = e0;
+    status = MCPointStatus::Valid;
   }
   void setE(double e0){
     e = e0;
   }
   void setDiscrete(){
     l = true;
+  }
+  void markUnmappable(){
+    status = MCPointStatus::Unmappable;
+  }
+  bool isValid(){
+    return status == MCPointStatus::Valid;
+  }
+  bool isUnmappable(){
+    return status == MCPointStatus::Unmappable;
+  }
+  MCPointStatus getStatus(){
+    return status;
   }
   int    getN(){return n;};
   int    getK(){return k;};
