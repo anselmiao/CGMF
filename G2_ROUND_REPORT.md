@@ -541,3 +541,51 @@ event 6 的 86.73 keV 及以上能级均高于 79.303 keV；能量可达的评�
 - 这只是两个 ¹³⁶I 事件的 PAPER_VERIFIED 对照，不能外推到其他核素；后续应按诊断频次逐核素核查评价能级、自旋宇称、能量可达性和分支资料。
 
 状态：¹³⁶I 评价能级 **PAPER_VERIFIED**；两个事件的 E1/M1/E2 可达候选筛选 **COMPUTATION_VERIFIED from published level table + logged initial states**；物理桥接核/跃迁赋权 **BLOCKED**。不修改模拟规则、不新增参数、不修改 golden。
+
+
+## Run #107：Run #151 逐事件诊断与 ENSDF 交叉核验（部分完成；不改模拟）
+
+### 1. 重新提取的原始事件诊断
+
+重新从 GitHub Actions Run #151（ID `44586698377`）的 job log 提取全部 12 条 `[MC bridge diagnostic]`，并保留事件、碎片侧、初态能量、自旋、宇称及拒绝原因：
+
+| 核素 | event | side | Ei (MeV) | Ji | πi | 程序拒绝原因 |
+|---|---:|---|---:|---:|---:|---|
+| ¹³⁶I | 6 | HF | 0.0793033 | 7 | + | angular momentum |
+| ¹³⁶I | 2 | HF | 0.0205397 | 3 | − | angular momentum |
+| ¹⁰⁵Nb | 9 | LF | 0.2825179 | 5.5 | + | angular momentum |
+| ⁹⁶Y | 24 | LF | 0.1867211 | 8 | − | angular momentum |
+| ¹³⁷I | 7 | HF | 0.1322979 | 11.5 | − | angular momentum |
+| ¹⁰⁵Zr | 12 | LF | 1.1799976 | 6 | − | angular momentum |
+| ¹³⁸Te | 20 | HF | 0.1776905 | 11 | − | angular momentum |
+| ¹³⁶I | 15 | HF | 0.0811650 | 4 | − | angular momentum |
+| ¹³⁷I | 16 | HF | 0.0773941 | 7.5 | + | angular momentum |
+| ¹³²I | 20 | HF | 0.2770588 | 8 | + | angular momentum |
+| ¹⁰⁵Zr | 12 | LF | 1.1799976 | 6 | − | angular momentum |
+| ⁸⁹Br | 34 | LF | 0.0232161 | 3 | + | parity |
+
+Run #151 的 12 条记录中，11 条为角动量拒绝、1 条为宇称拒绝；均为 ndisc=1。¹⁰⁵Zr event 12 的同一初态在两条回退入口各触发一次诊断，故表中保留两条程序记录，不将其误算为两个独立物理事件。
+
+### 2. 已完成的 ENSDF 对照
+
+**⁹⁶Y：** ENSDF 2008 年评价列出 0 keV (0−)、122.297 keV (1−)、652.29 keV (2−)、718.70 keV (1+,2+) 和 931.70 keV (1+) 等能级。对 event 24，Ei=186.721 keV，因此 652.29 keV 及以上不可达；可达的 0、122.297 keV 两个态，其 J=0、1 与 Ji=8 均不满足 E1 的 L=1 角动量三角条件。该事件的 E1 桥接失败不能仅由 ndisc=1 解释为漏掉一个已知低能态。ENSDF 还给出 122.297→0 keV 的 M1 与实测 B(M1)，但这不是本事件 Ji=8 初态到该态的桥接强度。来源：https://www.nndc.bnl.gov/ensnds/96/Y/adopted.pdf 。
+
+**¹³⁷I：** ENSDF 评价能级表列出基态 0 keV (7/2+)，下一已列能级为 243.3 keV (5/2+)。event 7 的 Ei=132.298 keV、Ji=11.5、π=−，event 16 的 Ei=77.394 keV、Ji=7.5、π=+；两事件都只有基态能量可达。对应自旋差分别为 8 和 4，均不满足 E1 的角动量条件。来源：https://www.nndc.bnl.gov/ensnds/137/I/adopted.pdf 。
+
+**¹³²I：** ENSDF 评价列出 0 keV (4+)、约 22 keV (5+，自旋宇称标注带不确定性)、49.72 keV (3+)、120 keV (8−)、161.52 keV (2+) 和 277.86 keV (1+)。event 20 的 Ei=277.058 keV，故 277.86 keV 态不可达；但 120 keV (8−) 态在能量上可达，且从初态 Ji=8、π=+ 到该态 Jf=8、π=− 满足 E1 的角动量与宇称选择条件。它是一个**外部评价能级给出的 E1-允许候选**，说明不能把该事件概括为“ENSDF 也没有 E1-允许的低能态”。然而，ENSDF 中该 120 keV 态是长寿命同核异能态；其已评价衰变表并未因此证明 CGMF 连续态初态到该态存在实际 E1 分支，更未给出本事件桥接概率。当前 CGMF ndisc=1 与 ENSDF 已评价能级覆盖之间存在值得追查的数据覆盖差异。来源：https://www.nndc.bnl.gov/ensnds/132/I/adopted.pdf 。
+
+**⁸⁹Br：** ENSDF 2021 年评价给出基态 0 keV (5/2−)，下一能级 130.3 keV (3/2−)。event 34 的 Ei=23.216 keV、Ji=3、π=+，故只有基态能量可达。按 ENSDF 基态 Jπ，Ji=3→Jf=5/2 满足 E1 角动量条件，且宇称相反，因而 E1 选择规则本身允许；但 Run #151 程序日志却报告唯一候选被 parity 拒绝。这构成**CGMF 当前离散态宇称/核素表与 ENSDF adopted ground-state Jπ 的待核查不一致**，不能直接归因为物理上不存在 E1 候选。必须检查 CGMF 实际载入的 ⁸⁹Br 离散能级记录、parity_index 到物理宇称的映射，以及运行时核素索引，确认是否数据文件、映射约定或事件状态造成差异。ENSDF 对该基态 Jπ 的说明注明其依据包括壳模型预测及邻核类比，且 1/2+ 也有理论提议；不应把该 Jπ 当作无不确定性的直接测量。来源：https://www.nndc.bnl.gov/ensdf/getadopted.jsp?nuc=89Br 。
+
+### 3. 尚未完成的核素
+
+¹⁰⁵Nb、¹⁰⁵Zr、¹³⁸Te 的逐事件评价能级对照尚未完成。本轮未取得足够可靠的对应 adopted-level 表内容，故不对其候选数、可达性或缺级情况作结论。
+
+### 4. 当前修订后的判断
+
+1. ¹³⁶I 与 ⁹⁶Y 的已查事件：现有 ENSDF 低能可达态仍不满足 E1 角动量条件。
+2. ¹³⁷I 的两个已查事件：已评价可达态也不满足 E1 角动量条件。
+3. ¹³²I event 20：ENSDF 存在一个能量可达且满足 E1 选择规则的 120 keV (8−) 态；但没有证据证明该连续态初态到该态的实际分支或强度。
+4. ⁸⁹Br event 34：ENSDF 基态选择规则允许 E1，而程序报告宇称拒绝；优先审计 CGMF 实际能级数据与宇称编码，不应先解释成物理禁戒。
+5. ¹⁰⁵Nb、¹⁰⁵Zr、¹³⁸Te 仍为未核验。
+
+**状态：** Run #151 诊断日志提取为 COMPUTATION_VERIFIED；上述 ENSDF 能级及选择规则对照为 PAPER_VERIFIED + 基于日志的 COMPUTATION_VERIFIED；¹³²I 的候选桥接分支、⁸⁹Br 的程序/数据库宇称不一致根因、其余三核素核验均为 BLOCKED。没有更改模拟算法、没有增加多极性/概率参数、没有恢复 nearest-J、没有修改 golden。Run #151/170 的失败 sidecar 仍不得进入 M0–M3 或 P/H/O。
