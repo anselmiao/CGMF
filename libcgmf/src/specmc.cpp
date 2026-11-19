@@ -91,12 +91,12 @@ static void g2AppendPayload(const char *path, const std::string &payload, const 
   if (!path || !*path || payload.empty()) return;
   std::ofstream output(path, std::ios::out | std::ios::app);
   if (!output) {
-    cgmTerminateCode(std::string("[G2 sidecar] unable to open ") + label);
+    cgmTerminateCode("[G2 sidecar] unable to open output file");
     return;
   }
   output.write(payload.data(), static_cast<std::streamsize>(payload.size()));
   output.flush();
-  if (!output) cgmTerminateCode(std::string("[G2 sidecar] write failure: ") + label);
+  if (!output) cgmTerminateCode("[G2 sidecar] output write failure");
 }
 
 static void g2StageAndCommitEvent(unsigned long long eventId, const std::string &side,
