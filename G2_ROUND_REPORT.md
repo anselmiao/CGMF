@@ -696,3 +696,68 @@ CGMF 官方用户手册明确说明，运行用 `cgmfDiscreteLevels.dat` 从 RIP
 得到这些材料后，才可判定是数据版本差异、RIPL 不确定 Jπ 的预处理选择、初态宇称口径不一致，还是实际代码错误。
 
 **状态：** E1 选择器宇称判定源码 **SOURCE_AUDITED**；⁸⁹Br ENSDF adopted Jπ **PAPER_VERIFIED**；CGMF 实际输入记录与预处理根因 **BLOCKED**；物理桥接强度 **BLOCKED**。无代码改动、无模拟规则改动、无 golden 改动。
+
+
+## Run #109：Run #151 的离散能级数据路径与 CI 产物审计（SOURCE_AUDITED；运行时最终路径仍待锁定）
+
+### 1. CMake 配置给出的两个候选数据目录
+
+审计 Run #151 对应提交 `3d8c45a7a119a43795c0c630fba35f3abddf575d` 的源码：
+
+- 根目录 `CMakeLists.txt` 使用 `GNUInstallDirs`，默认构建配置下启用安装；数据安装规则将 `data/*.dat*` 安装到 `${CMAKE_INSTALL_DATADIR}/data/cgmf-${CGMF_VER}`。
+- `libcgmf/CMakeLists.txt` 定义：
+  - `BUILD_DATADIR = ${CMAKE_CURRENT_SOURCE_DIR}/../data`，即源码 checkout 的 `data/`；
+  - `INSTALL_DATADIR = ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/data/cgmf-${CGMF_VER}`；
+  - 由 `cgmf_config.h.in` 生成编译期配置。
+- Run #151 的 CI 日志显示配置命令为 `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -Dcgmf.tests=ON`，没有传入自定义 install prefix；日志显示执行了 build，没有显示 `cmake --install`。
+
+### 2. 运行时目录解析优先级
+
+源码 `libcgmf/src/cgmfEvents.cpp`：
+
+1. `readUserInput()` 先读取 `-d` 参数；若没有 `-d`，再读取环境变量 `CGMFDATA`。
+2. `setdatapath(path)` 在 path 仍为空时，先检查 `INSTALL_DATADIR` 是否为目录；若不是，再检查 `BUILD_DATADIR`。
+3. `readDiscreteLevelData()` 在当前工作目录先尝试打开 `discreteLevels.dat`；失败后再打开 `datadir + DISCRETEDATA`。
+4. `DISCRETEDATA` 在 `libcgmf/include/ripl2levels.h` 定义为 `discreteLevels.dat`。
+
+因此，CI 的实际选择顺序是：**工作目录中的同名文件 → `CGMFDATA` 指向目录中的文件 → 编译时安装目录（若存在）→ 源码 checkout 的 `data/discreteLevels.dat`**。这里的前两项由调用环境决定，不能仅凭 CMake 配置跳过核实。
+
+### 3. Run #151 的实际调用与工作目录
+
+- Run #151 workflow job log 显示矩阵入口调用 `python3 tools/tests/runG2SidecarMatrix.py`，二进制为 `build/utils/cgmf/cgmf.x`。
+- 在 `runG2SidecarMatrix.py` 中，三个模式分别以每个 case 的 `on/`、`off/`、`baseline/` 子目录作为 subprocess 的 `cwd`。
+- CGMF 命令行参数包含 `-n`、`-e`、`-i`、可选 `-s` 和 `-f`，没有传 `-d`。
+- Python 脚本从 `os.environ.copy()` 继承环境，并没有自行设置 `CGMFDATA`。但当前取得的 job log 未打印完整环境变量，workflow YAML 的 job-level/env-level 设置尚未独立读取。因此不能把“没有在 Python 脚本中设置”扩大成“CI 环境一定没有 CGMFDATA”。
+
+### 4. 与 Run #151 同提交的数据身份
+
+直接对 Run #151 的 checkout commit 读取 GitHub Contents API 元数据，`data/discreteLevels.dat` 的 Git blob SHA 为：
+
+`dfd64cd3d7d890fec4b74e4bb82575ce0cc82e7c`
+
+它与此前 Run #108 在当前分支读取并解析的 `data/discreteLevels.dat` blob SHA 一致。故可确认：**Run #151 对应源码提交中的仓库数据文件身份，与 Run #108 审计的仓库数据文件身份相同**。这项结论是 Git blob 身份核对，不是文件 SHA-256，也不单独证明运行进程最终打开的就是该路径。
+
+`ripl2levels.cpp` 对该数据的读取方式也已核实：先打开工作目录中的 `discreteLevels.dat`；若失败才使用 `datadir + DISCRETEDATA`。文件记录字段按固定宽度解析为 ZAID、能级数，以及逐能级的 energy、spin、parity、half-life、gamma branch 数及分支记录。
+
+### 5. Run #151 artifact 审计
+
+通过 GitHub Actions artifact API 获取 Run #151 的 `cgmf-g2-mixed-history-matrix`，artifact ID `14562330132`，并实际下载、解压检查。内容仅包括：
+
+- `cf252-sf/on/mixed-history.jsonl`
+- `cf252-sf/on/neutron-transition.jsonl`
+- `cf252-sf/on/histories.cgmf.0`
+- `cf252-sf/on/sidecar-on.stdout`
+- 空的 `rng-audit.tsv`
+
+没有包含 `discreteLevels.dat`、生成的 `cgmf_config.h`、运行时 DATADIR 记录或核素级离散候选快照。该 artifact 的 `sidecar-on.stdout` 确认首次失败仍为 event 6、¹³⁶I、HF、ndisc=1、角动量拒绝；不能从该产物反推出运行时文件的绝对路径或文件 SHA-256。
+
+### 6. 当前结论与下一项最小取证
+
+- **SOURCE_AUDITED：** CMake 数据目录变量、`setdatapath()` 优先级、`-d/CGMFDATA` 入口、当前目录优先打开逻辑、矩阵脚本的 case 工作目录与参数。
+- **COMPUTATION_VERIFIED：** Run #151 checkout commit 的 `data/discreteLevels.dat` Git blob SHA 与 Run #108 审计的 blob SHA 相同；Run #151 artifact 已下载并检查，未包含运行时数据文件。
+- **BLOCKED：** 尚未从 workflow YAML/运行环境确认 `CGMFDATA` 是否被设置；未取得 CI 进程最终解析出的绝对 DATADIR；未从 Run #151 运行时归档得到文件 SHA-256 和 Z=35/A=89、Z=53/A=132 的实际载入记录。
+- 因此，Run #108 对仓库 `data/discreteLevels.dat` 的核素记录解析仍然成立，但“Run #151 运行时一定打开了这份仓库文件”目前只能视为高度可追踪的候选路径，尚未达到运行时直接证据等级。
+
+下一轮最小补证应只增加只读诊断：在 `readDiscreteLevelData()` 成功打开文件后打印 `fp` 实际打开的路径（或由调用端传入并记录最终路径）、文件 SHA-256，以及 ZAID 35089/53132 的 ndisc 和所有能级 energy/spin/parity；同时打印 `CGMFDATA` 是否存在、`-d` 是否传入、`INSTALL_DATADIR` 与 `BUILD_DATADIR` 的目录存在性。诊断不得改动选择器、抽样、离散数据库或 golden。取得该证据前，不重跑完整 G2 matrix，也不将 Run #151/170 失败数据纳入 M0–M3/P/H/O。
+
+本轮无模拟代码改动、无数据库改动、无 golden 改动；仅完成源码、CI 日志与既有 artifact 的只读审计。
