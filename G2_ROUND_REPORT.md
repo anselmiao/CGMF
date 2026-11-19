@@ -252,3 +252,30 @@ CI 状态：GitHub Actions 工具当前未返回新 SHA-256 门禁提交对应�
 ### 本轮裁决
 
 **桥接核物理赋权：BLOCKED；纯筛选规则：可独立实现与单测；UNMAPPABLE 端到端传播：接口设计待完成。** 本轮没有修改模拟算法、没有改变历史输出、没有生成新物理事件，也没有把 Run #84 数据升级为桥接核证据。继续实施前，先完成调用链状态传播设计和测试夹具；在缺少实际多极性/权重证据时，最多交付纯候选筛选器，不接入随机抽样。
+
+
+
+## Run #98：纯电磁多极性筛选器与单元测试（COMPUTATION_VERIFIED）
+
+在不推断实际跃迁多极性、不添加转移概率的前提下，已增加独立纯函数 `libcgmf/include/gamma_transition_selection.h`，以及 CTest 用例 `utils/cgmf/tests/gamma-transition-selection.cpp`，并注册到 `utils/cgmf/tests/CMakeLists.txt`。
+
+函数输入显式初态/终态能量、自旋、宇称，以及调用方明确指定的多极性 E1/M1/E2；仅返回该配对是否满足：
+- 正的光子能量（严格要求 (E_f<E_i)）；
+- 自旋三角条件 (|J_i-J_f|\le L\le J_i+J_f)；
+- 电/磁多极性对应的宇称关系：E(L) 为 ((-1)^L)，M(L) 为 ((-1)^{L+1})；
+- 输入为有限数值、非负能量/自旋，宇称标签为 ±1。
+
+单测覆盖 E1/M1/E2 的允许与禁戒情形、能量不可达、角动量三角条件、(0\to0) 禁戒、无效宇称/负自旋及 NaN 输入。使用 C++14、`-Wall -Wextra -Werror -pedantic` 在本地独立编译并执行该测试程序，结果 PASS（COMPUTATION_VERIFIED）。
+
+**适用边界：**
+1. 该函数是显式给定多极性后的 selection-rule predicate，不会从 `Level` 数据推断多极性。
+2. 它不返回候选概率、不抽样、不声称 E1/M1/E2 哪一种实际发生。
+3. 当前 `Level` 结构仍没有逐分支多极性标签，故该函数尚未接入 `mcFindNext()` 或 lower-cut 回退。两处仍维持原逻辑，直到实际多极性/赋权依据与 `UNMAPPABLE` 端到端状态传播契约完成。
+4. 这次单测的本地编译通过不等于仓库完整 CMake/CI 通过；需要新 CI 对该测试目标及原有 96 项 native tests、G2 matrix 一并验证。
+
+相关提交：
+- 纯筛选头文件：`5c3dfc3a283d2441a59f016519bb70cd8e85d450`
+- 测试与 CMake 注册：`e14bcd96a2891ae601dd762790f504e2d1c37a7f`、`8745df3e3209169a481c4069493c163add568407`、`27f4c5cd2390c65aa0719be562745c8b8fee739a`
+- 非有限输入保护与补充测试：`b4f9d80aed5d0e2a7792e29e78294840b2d7dce9`、`fb55229cc669c7ffea5b2108925b8c991a24d711`
+
+本轮没有改变模拟算法或生成新事件。物理桥接核仍为 BLOCKED；当前只交付可独立验证的候选筛选基础函数。
