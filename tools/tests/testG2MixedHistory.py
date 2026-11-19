@@ -162,7 +162,7 @@ def main():
                 finite(kin.get("energy_lab_MeV"), f"{group} gamma Lab energy", True)
                 for field in ("direction_cm", "direction_lab"):
                     vector(kin.get(field), f"{group} gamma {field}", unit=True)
-                finite(kin.get("photon_age_s"), f"{group} photon age", True)
+                compare_number(tr["energy_cm_MeV"], kin["energy_cm_MeV"], f"{group} gamma CM energy")
                 g_index += 1
             elif tr.get("internal_conversion") is not True:
                 raise ValueError(f"{group}: internal-conversion marker missing")
