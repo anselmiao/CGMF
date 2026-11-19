@@ -108,10 +108,12 @@ void readDiscreteLevelData () {
 		cerr << "[CGMF DATA AUDIT] datadir=" << datadir << endl;
 		cerr << "[CGMF DATA AUDIT] CGMFDATA="
 		     << ((cgmfDataEnv != NULL) ? cgmfDataEnv : "<unset>") << endl;
+		ifstream installProbe(string(INSTALL_DATADIR) + "/" + DISCRETEDATA);
+		ifstream buildProbe(string(BUILD_DATADIR) + "/" + DISCRETEDATA);
 		cerr << "[CGMF DATA AUDIT] INSTALL_DATADIR=" << INSTALL_DATADIR
-		     << " exists=" << checkdatapath(INSTALL_DATADIR) << endl;
+		     << " discrete_file_exists=" << installProbe.good() << endl;
 		cerr << "[CGMF DATA AUDIT] BUILD_DATADIR=" << BUILD_DATADIR
-		     << " exists=" << checkdatapath(BUILD_DATADIR) << endl;
+		     << " discrete_file_exists=" << buildProbe.good() << endl;
 	}
 
 	int a=0, z=0, nol=0, nc=0, nmax=0;
