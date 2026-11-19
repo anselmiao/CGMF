@@ -458,8 +458,14 @@ void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
           }
           //	  cout << " finished, index0 = " << index0 << endl;
         }
-        mnext.set(c0, (int)ncl[c0].lev[index0].parity,(int)ncl[c0].lev[index0].spin,index0,ncl[c0].lev[index0].energy);
-        mnext.setDiscrete();
+        if (index0 < 0 || index0 >= ndisc) {
+          mnext.markUnmappable();
+        } else {
+          mnext.set(c0, (int)ncl[c0].lev[index0].parity,
+                    (int)ncl[c0].lev[index0].spin, index0,
+                    ncl[c0].lev[index0].energy);
+          mnext.setDiscrete();
+        }
       }
       }
     }
@@ -589,9 +595,15 @@ MCPoint mcFindNext(int c0, int c1, int jspin, int parity)
     }
   }
 	
-  m.set(c0, (int)ncl[c0].lev[index0].parity,(int)ncl[c0].lev[index0].spin,index0,ncl[c0].lev[index0].energy);
+  if (index0 < 0 || index0 >= ndisc) {
+    m.markUnmappable();
+    return m;
+  }
+  m.set(c0, (int)ncl[c0].lev[index0].parity,
+        (int)ncl[c0].lev[index0].spin, index0,
+        ncl[c0].lev[index0].energy);
   m.setDiscrete();
-  
+
   return(m);
 }
 
