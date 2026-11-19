@@ -43,3 +43,5 @@ add_subdirectory(pu239nf-start-events)
 
 add_subdirectory(gamma-transition-selection)
 add_subdirectory(mcpoint-status)
+
+add_subdirectory(g2-sidecar-transaction)
