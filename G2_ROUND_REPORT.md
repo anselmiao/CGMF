@@ -200,3 +200,19 @@ Run #95（commit `0590629244853c57c4e9c1d0f821046b524b9369`）的 CMake Configur
 已将 Run #95 的审定输出摘要落实为 CTest 检查：新增 `checkHistorySha256.cmake`，对 Pu-242 sf、U-235 thermal、U-235 thermal+time 三个受影响用例分别校验 serial 全文件 SHA-256 与 MPI rank 0 SHA-256；MPI rank 1 继续逐字节对照原始 reference。三份旧 rank 0 reference 未删除，保留溯源。该实现没有使用 `continue-on-error` 绕过差异，也没有改变其余用例的 golden。
 
 **验证状态必须分开记录：** Run #95 验证的是旧 CTest 逐字节比较，故其最终失败不能算新 SHA-256 门禁通过；新门禁已进入当前工作分支源码，但仍需由该分支的新 CI 运行验证 Configure、Build、96 项原生测试与 G2 矩阵。新 CI 通过前，不标记为 CI 已修复完成。
+
+
+## Run #96 后续源码审计：离散终态回退（SOURCE_AUDIT_VERIFIED）
+
+复查当前分支 `libcgmf/src/specmc.cpp` 的 `mcHistoryLoop()` 与 `mcFindNext()`，确认存在两处独立的强制离散终态回退：
+
+1. `mcFindNext()` 在连续/离散布居累计概率未命中时，先按 E1 形式条件（异宇称、\(|\Delta J|<2\)、三角条件）扫描全部离散能级；若无候选，再按最近 J 选择。
+2. `mcHistoryLoop()` 在 `CONTINUUM_LOWER_CUT` 触发时另有一套几乎相同的 E1 扫描与 nearest-J 回退。
+
+两处扫描都未过滤候选能级是否满足 &nbsp;\(E_f\le E_i\)。因此即使只修正 `mcFindNext()`，第二条 lower-cut 路径仍可能选到能量不可达终态；反之亦然。并且当前实现把 E1 条件写死为唯一优先规则，失败后又允许违反该规则的 nearest-J 选择。当前代码没有在这些强制回退处返回显式的不可映射状态。
+
+**实现决策：暂不直接修改物理选择逻辑。** 先将两条路径统一到一个纯候选筛选函数，并为其建立独立单元测试；候选筛选至少必须满足能量可达性与明确指定的多极性规则。若现有 level 数据没有给出足够的跃迁多极性/分支信息，则不能假装已知转移概率；应返回结构化的 `UNMAPPABLE`，并由调用层显式处理，禁止 nearest-J 静默兜底。还需检查 `MCPoint` 的无效状态表达和 `mcHistoryLoop()` 对终止状态的处理，避免返回无候选后访问 `lev[-1]`。
+
+**测试矩阵：** (a) 终态能量高于初态必须拒绝；(b) 能量可达且 E1 角动量/宇称允许才可列入 E1 候选；(c) 同宇称/禁戒 \(\Delta J\) 必须拒绝；(d) 空候选返回 `UNMAPPABLE`；(e) lower-cut 与常规无转移两条入口调用同一筛选逻辑；(f) 无效状态不得写入历史或访问能级数组。当前只完成源码审计与测试规格，尚未修改物理算法，也未声称桥接核完成。
+
+CI 状态：GitHub Actions 工具当前未返回新 SHA-256 门禁提交对应的 workflow run（提交关联查询只返回 PR 触发运行，且本次没有可用的 run ID）。因此新门禁仍标记为待 CI 验证；不能把源代码存在等同于测试已通过。
