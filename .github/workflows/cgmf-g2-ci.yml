@@ -35,6 +35,8 @@ jobs:
         run: cmake --build build --parallel 2
 
       - name: Run native CGMF test suite
+        id: native_tests
+        continue-on-error: true
         run: ctest --test-dir build --output-on-failure
 
       - name: Run G2 three-layer analysis unit tests (synthetic fixtures)
@@ -185,3 +187,11 @@ jobs:
           path: |
             build/utils/cgmf/tests/**/histories.cgmf.serial.0
           if-no-files-found: ignore
+
+      - name: Enforce native regression baseline after G2 diagnostics
+        if: always()
+        run: |
+          if [[ "${{ steps.native_tests.outcome }}" != "success" ]]; then
+            echo "Native regression comparison failed; preserve old golden files pending review."
+            exit 1
+          fi
