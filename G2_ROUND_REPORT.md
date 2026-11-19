@@ -647,3 +647,52 @@ Run #151 的 12 条记录中，11 条为角动量拒绝、1 条为宇称拒绝�
 - ¹⁰⁵Zr、¹³⁸Te 的 adopted ground-state 一致性：**BLOCKED / NOT YET VERIFIED**。
 - 本轮未修改模拟算法、未修改离散数据库、未修改 golden、未生成新事件。
 
+
+
+## Run #108：⁸⁹Br 宇称冲突的来源分层审计（SOURCE_AUDITED + PAPER_VERIFIED；根因仍 BLOCKED）
+
+### 1. 选择器源码核对
+
+当前分支 `libcgmf/src/specmc.cpp` 的 `mcSelectE1DiscreteBridge()`：
+- 将连续态自旋索引转换为物理自旋：`initialSpin = spinIndex + halfint(target.lev[0].spin)`；
+- 对候选态直接读取 `candidate.parity`；
+- 要求初末宇称均为 ±1，且 `initialParity * candidate.parity == -1`；
+- 选择器中没有额外 parity_index→物理宇称转换，也没有对候选宇称进行二次翻转。
+
+因此，Run #151 的 ⁸⁹Br parity rejection 直接意味着：运行时传入的 `initialParity` 与唯一候选 `candidate.parity` 未满足相反宇称条件（或者候选/初态宇称值非法而被计入 invalid；原诊断报告的是 parity rejection，需保留原日志核对字段）。目前不能仅凭选择器源码断言转换 bug。
+
+### 2. ⁸⁹Br 外部评价资料
+
+NNDC ENSDF ⁸⁹Br Adopted Levels, Gammas（评价版本 Nov 2021；ENSDF index 显示 2022-01 数据集）列出：
+- 0 keV：((5/2^-)) 基态；
+- 130.3 keV：((3/2^-))；
+- 后续已列能级 506.7、531.5、953.4 keV 等。
+
+Run #151 event 34：Ei=23.2161 keV、Ji=3、πi=+。按 ENSDF adopted ground state，能量可达的只有 0 keV 基态，E1 的 (|ΔJ|=0.5leq1) 且初末宇称相反，故选择规则允许。来源：https://www.nndc.bnl.gov/ensdf/getadopted.jsp?nuc=89Br 。
+
+### 3. 重要发现：CGMF 的数据准备流程会“修补”缺失/不确定 Jπ
+
+CGMF 官方用户手册明确说明，运行用 `cgmfDiscreteLevels.dat` 从 RIPL-3 完整数据经 `transformLevelDataFile.ipynb` / `Nucleus.py` 生成；对缺失自旋/宇称的能级会按 KCK 连续能级密度系统补值，缺失宇称可能随机选择；RIPL 给出多个 Jπ 选项时取第一项；基态完全未知时按质量奇偶采用默认 Jπ。手册特别警告这些任意处理会影响特定核素的 γ 级联研究。来源：https://cgmf.readthedocs.io/en/stable/discreteLevels.html 。
+
+因此，⁸⁹Br 的差异可能发生在 **RIPL/ENSDF → CGMF 离散能级文件预处理**，而不一定在 E1 选择器。ENSDF 的括号标记也代表评价自旋宇称带有建议/不确定性质，不能把所有评价赋值视为无误差直接测量。
+
+### 4. 还不能下的结论
+
+本分支当前可读取到的源码确认了选择器逻辑，但本轮没有成功定位并读取运行实际使用的 `cgmfDiscreteLevels.dat`、⁸⁹Br 对应原始 RIPL 行及预处理后的记录，也未从 Run #151 原始产物取得该事件的 candidate.parity 原值。因此：
+- 不能宣称 ⁸⁹Br parity bug 已修复或已定位到具体文件；
+- 不能把 ENSDF 的 5/2− 直接覆盖 CGMF 输入；
+- 不能将 ENSDF 允许 E1 等同于存在已测 E1 分支或可赋予桥接概率；
+- 不能据此修改模拟抽样、补充概率或重跑 G2 矩阵。
+
+### 5. 下一步可执行的最小审计包
+
+需要从 Run #151 的构建/运行环境或仓库实际数据目录取出并归档：
+1. 运行时 `DATADIR` 的真实值和文件 SHA-256；
+2. `cgmfDiscreteLevels.dat` 中 Z=35,A=89 的全部记录（能量、spin、parity、level index）；
+3. 对应 RIPL-3 原始记录；
+4. `transformLevelDataFile.ipynb` / `Nucleus.py` 对该核素执行补全前后的逐条差异；
+5. event 34 的运行时初态宇称、唯一候选的原始 parity、level index、文件来源行。
+
+得到这些材料后，才可判定是数据版本差异、RIPL 不确定 Jπ 的预处理选择、初态宇称口径不一致，还是实际代码错误。
+
+**状态：** E1 选择器宇称判定源码 **SOURCE_AUDITED**；⁸⁹Br ENSDF adopted Jπ **PAPER_VERIFIED**；CGMF 实际输入记录与预处理根因 **BLOCKED**；物理桥接强度 **BLOCKED**。无代码改动、无模拟规则改动、无 golden 改动。
