@@ -482,3 +482,40 @@ Run #156（workflow ID `44589725299`，commit `b0c417d580a52e412113a786af5d8e33b
 ### 状态修订
 
 Run #103 中“成对暂存/提交机制 PROPOSED、未实现”的状态由本节更新为：**IMPLEMENTED，显式测试已加固，CI 待验证**。Run #151/156 因桥接失败生成的部分数据仍不可用于 M0–M3、匹配残差或 P/H/O；物理桥接赋权继续 BLOCKED。
+
+
+## Run #105：成对暂存测试真实 CI 验证（COMPUTATION_VERIFIED；G2 运行仍 BLOCKED）
+
+### Run #170 结果
+
+Workflow run ID `44593509889`，提交 `968c7c48f17982bf66822e14acfc16600070a69e`：
+- Configure：PASS。
+- C++ Build：PASS。
+- Native CTest：99 项中 75 项通过；12 个事件执行测试失败，另有 12 个依赖测试未运行。其余 75 项包含新增 `g2-sidecar-transaction`，该测试在 Release CI 中以显式 `require()` 断言实际执行并 PASS。
+- G2 三层分析、条件完整历史、匹配条件历史、事件状态模型竞争、碎片状态消融、RNG seed matrix 单元测试：均 PASS。
+- 完整 G2 sidecar matrix：模拟程序 exit 255，失败。
+- 真实模拟后续分析步骤：SKIPPED。
+- native golden enforcement：FAIL；未覆盖旧 golden。
+
+### 事务测试能证明什么
+
+Run #170 的 transaction test 实际执行了 LF 暂存、HF 配对、LF→HF payload 顺序、零中子、HF 先到、事件 ID 错配、重复 LF/HF、未 reset 时覆盖下一事件、event_id=0 和非法 side 等检查。由此将缓冲器的状态机单元测试从“可能被 NDEBUG 消除的 assert”升级为 **COMPUTATION_VERIFIED**。
+
+### 仍未证明的内容
+
+1. 12 个事件执行测试失败的根因仍是离散桥接无可映射状态；日志中的代表案例仍为 HF ^136I、LF ^105Nb 等只有一个离散候选且不满足 E1 角动量条件。transaction test 通过不能改变这一点。
+2. 完整 sidecar matrix 没有完成，因此没有新一轮真实运行可验证 LF/HF 成对输出。
+3. 缓冲器单元测试没有模拟真实文件系统的写入失败；两个 sidecar 文件之间仍无跨文件原子事务保证。
+4. 由于 `cgmTerminateCode()` 仍直接终止进程，失败事件不会继续运行或生成失败事件记录；但 LF 尚在内存缓冲时进程退出，不应留下该事件的 LF sidecar 行。
+
+### 当前状态
+
+- 缓冲器状态机：**COMPUTATION_VERIFIED**（Run #170）。
+- `recordEmittedParticlesFission()` 到缓冲器的静态接线：**SOURCE_AUDITED**。
+- 实际模拟下的成对 sidecar 输出：**BLOCKED / NOT VERIFIED**（因桥接失败，完整 G2 matrix 未运行完成）。
+- 跨文件写入原子性、事件级恢复/失败账本：**NOT IMPLEMENTED**。
+- Run #170 的失败运行产物不得用于 M0–M3、匹配残差或 P/H/O。
+
+### 下一项研究工作
+
+当前不应继续围绕已经通过的缓冲器状态机重复加测试。应转向桥接输入证据审计：对 Run #151/170 诊断中出现的核素，核查 CGMF 实际加载的离散能级表、连续态终止能量、实验评价能级数据库及对应核素的能级自旋宇称资料，判断是当前模型能级表截断/不完整，还是确实缺乏可识别桥接态。外部评价能级只用于识别数据覆盖和候选状态，不得直接当作 CGMF 采样概率或桥接多极性。只有找到可追溯的分支多极性/强度依据，才重新评估物理桥接核；否则保持 BLOCKED，不补参数、不恢复 nearest-J。
