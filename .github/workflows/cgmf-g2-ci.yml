@@ -42,6 +42,9 @@ jobs:
       - name: Run conditional full-history analysis unit tests (synthetic fixtures)
         run: python3 -m unittest discover -s tools/tests -p 'testG2ConditionalHistoryAnalysis.py' -v
 
+      - name: Run matched conditional history unit tests (synthetic fixtures)
+        run: python3 -m unittest discover -s tools/tests -p 'testG2MatchedHistoryPermutation.py' -v
+
       - name: Run complete G2 neutron and mixed-history sidecar matrix
         run: |
           set -euo pipefail
@@ -70,6 +73,12 @@ jobs:
               --permutations 250 \
               --seed 20261119 \
               --include-spin-parity
+            python3 tools/analysis/g2MatchedHistoryPermutation.py \
+              "build/g2-sidecar-matrix/${case_name}/on/mixed-history.jsonl" \
+              --output "build/g2-sidecar-matrix/conditional-analysis/${case_name}-matched.json" \
+              --calipers 1.5,2.5 \
+              --permutations 250 \
+              --seed 20261119
           done
 
       - name: Save G2 matrix artifacts
