@@ -1137,3 +1137,51 @@ CGMF 1.1.0 的发布提交说明 `discreteLevels.dat` 扩展为包含全部同�
 ### 5. 下一步
 
 沿官方 Git 历史向 CGMF 1.0.0 之前追踪 `data/discreteLevels.dat` 的首次引入提交及其 parent tree；同时检查 1.0.0 对应的源数据文件与文件头注释。如果更早历史也没有转换器，则应把 ⁸⁹Br (2^+) 记录列为“历史来源不可追溯的数据项”，并将其与基于 ENSDF 的替代方案隔离保存，不能静默覆盖生产数据。
+
+
+## Run #116：CGMF 1.0.0 中离散能级文件的首次入库节点与生成来源标记（COMPUTATION_VERIFIED；逐条转换算法仍 BLOCKED）
+
+### 1. 官方路径历史与父提交核验
+
+通过 GitHub commits API 按路径查询 `lanl/CGMF/data/discreteLevels.dat`，返回两条记录：
+- CGMF 1.0.0：`b1a10b7bb542cbb7ada12adef28935da25364c7f`，提交时间 2020-11-19（committer date）；父提交为 `75960cf7625103afa0286418f3c83f53f094b189`（Initial commit）。
+- CGMF 1.1.0：`e333c9ca3bd869032a170393a50942b31d992aeb`，提交时间 2021-10-20；父提交为 `09472b83a6b2c1024f0c5a70e93dcd75c931aeff`（CGMF 1.0.1 合并提交）。
+
+直接读取 1.0.0 父提交的递归 Git tree，未发现 `data/discreteLevels.dat`；同样没有发现 RIPL level 数据文件。读取 1.0.0 发布提交的 tree，则发现：
+- `data/discreteLevels.dat`：blob `96a40d82bbcc937ab40421145e1d6cc7654eff28`；
+- `data/ripl3-levels.dat`：blob `c3c3a816730deef172ccbd11b0dfd58b6d197d90`；
+- `data/ripl3-levels-2015.dat`：blob `3be0a27558c793837f6c3cc5deb45ea1deee7259`。
+
+因此，`b1a10b7` 是 `discreteLevels.dat` 在当前官方 Git 历史中的首次入库提交；1.0.0 父提交没有该文件。这个结论描述的是**仓库可追溯历史**，不是数据在作者本地或外部生成环境中的绝对诞生时间。
+
+### 2. 1.0.0 首发文件头的来源说明
+
+直接读取 1.0.0 的 `data/discreteLevels.dat` blob，文件头原文说明：
+- 该文件为 CGMF-1.0；
+- 数据文件由 RIPL-3 data file 中的 evaluated discrete levels 生成；
+- 缺失/未指派 spin/parity 按 CGMF manual（CPC）描述的规则设置。
+
+这将 ⁸⁹Br 的数值变化明确定位到专用文件的生成/预处理层，而非 1.0.0→1.1.0 的后续扩展，也不是当前已核实的运行时 `statFixDiscreteLevels()` 对已赋值记录的再次补值。
+
+### 3. ⁸⁹Br 原始行与最终行的同版本对照
+
+同一个 1.0.0 Git tree 中：
+- RIPL-3 输入 `data/ripl3-levels.dat` 的 ⁸⁹Br 行：数值字段 `spin=-1.0, parity=0`，文本候选 `(3/2-,5/2-)`；
+- 最终 `data/discreteLevels.dat`：`89Br 35089 1`，能级行为 `0.000000 2.0 1 4.40000e+00 0`。
+
+因此，同一发布快照中源数值 Jπ 未指派，而最终文件已经写入整数自旋 J=2、正宇称。不能将括号中的第一个候选直接解释成最终 2+，也不能仅凭手册概述断言该记录具体经过 KCK 抽样或某个候选解析分支。
+
+### 4. 状态更新
+
+- `discreteLevels.dat` 在官方 Git 历史中的首次入库提交及父 tree 不含该文件：**COMPUTATION_VERIFIED**。
+- 1.0.0 同一提交树包含专用文件及两份 RIPL-3 源文件：**COMPUTATION_VERIFIED**。
+- 1.0.0 专用文件头声明 RIPL-3 生成来源及缺失 Jπ 按手册处理：**SOURCE_AUDITED**。
+- 1.0.0 同版本 RIPL 输入行与最终 2+ 行的差异：**COMPUTATION_VERIFIED**。
+- 转换 notebook/class 的精确版本、执行顺序、随机种子、记录级分支及最终 2+ 的具体成因：**BLOCKED**。
+- 数据是否在仓库初始提交之前由外部脚本或人工预生成：**BLOCKED**。
+
+### 5. 下一步
+
+优先从 1.0.0 发布包、文档构建源和作者可公开的辅助仓库寻找 `transformLevelDataFile.ipynb` / `Nucleus.py` 的可核验副本；并尝试对同一提交中的 `ripl3-levels-2015.dat` 做定点读取，核对其 ⁸⁹Br 记录。若工具版本或输入记录仍无法恢复，则把 2+ 标记为“可定位到 1.0.0 首发生成文件、具体生成算法不可追溯”的历史数据产物，不改生产数据库，不以 ENSDF 候选值静默覆盖。
+
+本轮只做 Git 历史与源数据审计，不修改物理代码、离散能级数据、golden 或事件矩阵。
