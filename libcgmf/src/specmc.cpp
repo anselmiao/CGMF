@@ -406,7 +406,11 @@ void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
     /*** move current position to the next state */
     //mnext = mcFindNext(c0,c1);
     mnext = mcFindNext(c0,c1,mcurr.getJ(),mcurr.getP());
-		
+    if (!mnext.isValid()) {
+      cgmTerminateCode("[MC history] next-state selection returned an invalid state");
+      return;
+    }
+
     if(PERTURB_EXCITATON_ENERGY && !mnext.ifDiscrete()){
       int c = mnext.getN();
       int k = mnext.getK();
@@ -424,6 +428,9 @@ void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
     // ***** FROM IONEL ON SEP. 5, 2012
 ////    if( (CONTINUUM_LOWER_CUT > 0.0) && (-1 == c1) ){
 		if( (CONTINUUM_LOWER_CUT > 0.0) && (c0 == mnext.getN()) ){
+      if (ncl[c0].ndisc <= 0) {
+        mnext.markUnmappable();
+      } else {
 			double elcut = ncl[c0].lev[ncl[c0].ndisc-1].energy + CONTINUUM_LOWER_CUT;
       if( (mnext.getE() < elcut) && (!mnext.ifDiscrete()) ){
 				int index0=-1 ;
@@ -454,9 +461,14 @@ void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
         mnext.set(c0, (int)ncl[c0].lev[index0].parity,(int)ncl[c0].lev[index0].spin,index0,ncl[c0].lev[index0].energy);
         mnext.setDiscrete();
       }
+      }
     }
 
     //#endif
+    if (!mnext.isValid()) {
+      cgmTerminateCode("[MC history] lower-cut transition has no mappable discrete state");
+      return;
+    }
     mcStoreHistory(false,mcurr,mnext,spc);
     mcurr = mnext;
 
@@ -468,6 +480,10 @@ void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
   /*** discrete level case */
 	int final_state = 0;
 	if(mnext.getK() > 0) final_state = mcGammaCascade(mnext.getN(),mnext.getK(),spc);
+    if (final_state < 0 || final_state >= ncl[mnext.getN()].ndisc) {
+      cgmTerminateCode("[MC history] final discrete-state index out of range");
+      return;
+    }
 
 	/*** insert final state */
 	int c = mcurr.getN();
@@ -547,6 +563,10 @@ MCPoint mcFindNext(int c0, int c1, int jspin, int parity)
 //  //IS: Ionel :: modified to force the transition into a state allowed by multiplicity 1 transition
   int index0=-1 ;
   int ndisc = ncl[c0].ndisc ;
+  if (ndisc <= 0) {
+    m.markUnmappable();
+    return m;
+  }
   double xpr = -1.;
   for( int kk2 = 0 ; kk2 <  ndisc ; kk2++ ){
     if( ncl[c0].lev[kk2].parity * parity > 0 ) continue ; //E1 selection rules only
