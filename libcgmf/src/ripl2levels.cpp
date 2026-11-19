@@ -27,6 +27,7 @@ using namespace std;
 #include "ripl2levels.h"
 #include "terminate.h"
 #include "config.h"
+#include "cgmf_config.h"
 
 static void riplSelectCandidate  (string, double *, int *);
 static int  riplFixTransition    (int *, double *, double *, int k , Level * );
