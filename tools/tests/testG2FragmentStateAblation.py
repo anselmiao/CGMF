@@ -23,9 +23,11 @@ def fragment(side, A_value, Z_value, momentum):
 
 
 class FragmentStateAblationTests(unittest.TestCase):
-    def test_local_state_uses_only_intrinsic_fields(self):
-        f = fragment("HF", 140, 54, [1.0, 2.0, 3.0])["initial_fragment"]
-        self.assertEqual(A.local_state(f), [140.0, 54.0, 1.0, 5.0, 3.0])
+    def test_lf_intrinsic_state_excludes_conserved_az(self):
+        f = fragment("LF", 99, 40, [1.0, 2.0, 3.0])["initial_fragment"]
+        self.assertEqual(A.lf_intrinsic_state(f), [1.0, 5.0, 3.0])
+        self.assertEqual(A.lf_conserved_az(f), [99.0, 40.0])
+        self.assertEqual(A.local_state(f), [99.0, 40.0, 1.0, 5.0, 3.0])
 
     def test_read_split_requires_exact_rng_audit(self):
         with tempfile.TemporaryDirectory() as td:

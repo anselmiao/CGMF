@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Ablate LF/HF initial-state information on independent audited RNG seeds.
 
-Local intrinsic fields: A, Z, parity_index, excitation_MeV, spin_stored.
-Kinematic block: both recorded pre-fragment momentum vectors, kept separate
-because they are linked by event-level momentum constraints.
+HF state includes A/Z plus parity, excitation, and stored spin. LF fields are
+split into conserved-complement A/Z and intrinsic parity, excitation, spin.
+Kinematic block remains separate because momentum vectors are constraint-linked.
 All comparisons use fixed ridge lambda=1 and complete held-out LF/HF event pairs.
 """
 import argparse
@@ -111,8 +111,18 @@ def validate_disjoint_seed_sets(train, test):
 
 
 def local_state(fragment):
+    """Full fragment state, retained for the HF conditioning block."""
     return [float(fragment[k]) for k in
             ("A", "Z", "parity_index", "excitation_MeV", "spin_stored")]
+
+
+def lf_intrinsic_state(fragment):
+    """LF-local state excluding A/Z, which are conserved complements."""
+    return [float(fragment[k]) for k in ("parity_index", "excitation_MeV", "spin_stored")]
+
+
+def lf_conserved_az(fragment):
+    return [float(fragment[k]) for k in ("A", "Z")]
 
 
 def read_split(paths):
@@ -138,7 +148,12 @@ def read_split(paths):
             pL = [float(x) for x in L["pre_fragment_momentum_MeV_c"]]
             pH = [float(x) for x in H["pre_fragment_momentum_MeV_c"]]
             record.update({
-                "L_local": local_state(L),
+                "L_full": local_state(L),
+                "L_AZ": lf_conserved_az(L),
+                "L_intrinsic": lf_intrinsic_state(L),
+                "L_parity": [float(L["parity_index"])],
+                "L_excitation": [float(L["excitation_MeV"])],
+                "L_spin": [float(L["spin_stored"])],
                 "H_local": local_state(H),
                 "shared_kinematics": pL + pH,
             })
@@ -261,10 +276,15 @@ def run(train_paths, test_paths, output, ridge=RIDGE_DEFAULT,
         raise ValueError("need at least 20 complete events in train and test")
     feature_builders = {
         "H_local": lambda r: r["H_local"],
-        "L_local": lambda r: r["L_local"],
-        "L+H_local": lambda r: r["L_local"] + r["H_local"],
+        "L_AZ_only": lambda r: r["L_AZ"],
+        "L_intrinsic_only": lambda r: r["L_intrinsic"],
+        "H+L_AZ": lambda r: r["H_local"] + r["L_AZ"],
+        "H+L_intrinsic": lambda r: r["H_local"] + r["L_intrinsic"],
+        "H+L_parity": lambda r: r["H_local"] + r["L_parity"],
+        "H+L_excitation": lambda r: r["H_local"] + r["L_excitation"],
+        "H+L_spin": lambda r: r["H_local"] + r["L_spin"],
         "H_local+K": lambda r: r["H_local"] + r["shared_kinematics"],
-        "L+H_local+K": lambda r: r["L_local"] + r["H_local"] + r["shared_kinematics"],
+        "H+L_intrinsic+K": lambda r: r["H_local"] + r["L_intrinsic"] + r["shared_kinematics"],
     }
     fits, models = {}, {}
     for name, builder in feature_builders.items():
@@ -277,10 +297,14 @@ def run(train_paths, test_paths, output, ridge=RIDGE_DEFAULT,
             "targets": fits[name]["targets"],
         }
     comparisons = {
-        "L+H_local_vs_H_local": paired_bootstrap_delta(fits["L+H_local"], fits["H_local"], n_boot, bootstrap_seed),
-        "L+H_local+K_vs_H_local+K": paired_bootstrap_delta(fits["L+H_local+K"], fits["H_local+K"], n_boot, bootstrap_seed),
+        "H+L_intrinsic_vs_H": paired_bootstrap_delta(fits["H+L_intrinsic"], fits["H_local"], n_boot, bootstrap_seed),
+        "H+L_intrinsic+K_vs_H+K": paired_bootstrap_delta(fits["H+L_intrinsic+K"], fits["H_local+K"], n_boot, bootstrap_seed),
+        "H+L_parity_vs_H": paired_bootstrap_delta(fits["H+L_parity"], fits["H_local"], n_boot, bootstrap_seed),
+        "H+L_excitation_vs_H": paired_bootstrap_delta(fits["H+L_excitation"], fits["H_local"], n_boot, bootstrap_seed),
+        "H+L_spin_vs_H": paired_bootstrap_delta(fits["H+L_spin"], fits["H_local"], n_boot, bootstrap_seed),
+        "H+L_AZ_vs_H": paired_bootstrap_delta(fits["H+L_AZ"], fits["H_local"], n_boot, bootstrap_seed),
         "H_local+K_vs_H_local": paired_bootstrap_delta(fits["H_local+K"], fits["H_local"], n_boot, bootstrap_seed),
-        "L_local_vs_H_local": paired_bootstrap_delta(fits["L_local"], fits["H_local"], n_boot, bootstrap_seed),
+        "L_intrinsic_only_vs_H": paired_bootstrap_delta(fits["L_intrinsic_only"], fits["H_local"], n_boot, bootstrap_seed),
     }
     diag_keys = list(diagnostics[0])
     diag_summary = {
@@ -292,7 +316,7 @@ def run(train_paths, test_paths, output, ridge=RIDGE_DEFAULT,
         for k in diag_keys
     }
     result = {
-        "schema": "cgmf.g2.fragment-state-ablation.v1",
+        "schema": "cgmf.g2.fragment-state-ablation.v2",
         "train_files": [str(x) for x in train_paths],
         "test_files": [str(x) for x in test_paths],
         "n_train_events": len(train), "n_test_events": len(test),
@@ -303,14 +327,17 @@ def run(train_paths, test_paths, output, ridge=RIDGE_DEFAULT,
         "targets": TARGETS,
         "feature_groups": {
             "H_local": ["HF A", "HF Z", "HF parity_index", "HF excitation_MeV", "HF spin_stored"],
-            "L_local": ["LF A", "LF Z", "LF parity_index", "LF excitation_MeV", "LF spin_stored"],
+            "L_conserved_complement": ["LF A", "LF Z"],
+            "L_intrinsic": ["LF parity_index", "LF excitation_MeV", "LF spin_stored"],
             "K": ["LF pre_fragment_momentum vector (3 components)", "HF pre_fragment_momentum vector (3 components)"],
         },
         "models": models, "paired_bootstrap_comparisons": comparisons,
         "heldout_event_state_diagnostics": diag_summary,
         "interpretation_limits": [
+            "LF A/Z are reported as a separate conserved-complement block and are not counted as independent LF intrinsic information.",
+            "Primary H+L_intrinsic versus H comparisons add only LF parity, excitation, and stored spin beyond the same HF state.",
+            "Single-field LF additions are exploratory decomposition of the same predeclared feature groups, not independent confirmatory tests.",
             "K is a separate shared/constraint-related kinematic block, not an independent LF-to-HF mechanism.",
-            "L+H versus H comparisons test LF intrinsic-state incremental prediction conditional on the same HF state and, in the +K comparison, the same momentum block.",
             "A predictive increment is conditional information/association, not direct cross-fragment causation; omitted common causes remain possible.",
             "TXE and TKE proxy are not included as separate features because they are deterministic transforms of the recorded state fields.",
             "All fits use training-only standardization, fixed ridge lambda, and no test-driven tuning.",

@@ -114,7 +114,7 @@ jobs:
             --test build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
             --output "$out/train-201-400_401-600_test-1-200.json"
 
-      - name: Run three-fold LF/HF fragment-state ablation on independent Pu-239 thermal seeds
+      - name: Run three-fold LF intrinsic-state ablation beyond HF and conserved A/Z controls
         run: |
           set -euo pipefail
           out=build/g2-sidecar-matrix/fragment-state-ablation
