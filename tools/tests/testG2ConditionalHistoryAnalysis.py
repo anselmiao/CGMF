@@ -69,6 +69,19 @@ class ConditionalHistoryTests(unittest.TestCase):
         self.assertEqual(rows, [])
         self.assertEqual(incomplete, 1)
 
+    def test_spin_parity_conditioning_adds_state_coordinates(self):
+        events = {}
+        for i in range(1, 5):
+            lf = record(i, "LF", 100, 40, 8.1, float(i))
+            hf = record(i, "HF", 140, 54, 9.1, float(i*2))
+            lf["initial_fragment"].update({"spin_stored": 4, "parity_index": 1})
+            hf["initial_fragment"].update({"spin_stored": 6, "parity_index": -1})
+            events[i] = {"LF": lf, "HF": hf}
+        base, _ = A.make_rows(events, 2.0)
+        extended, _ = A.make_rows(events, 2.0, include_spin_parity=True)
+        self.assertEqual(base[0]["stratum"][:6], extended[0]["stratum"][:6])
+        self.assertEqual(len(extended[0]["stratum"]), 10)
+
     def test_duplicate_fragment_rejected(self):
         row = record(1, "LF", 100, 40, 8.0, 1.0)
         with tempfile.TemporaryDirectory() as d:
