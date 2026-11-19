@@ -19,7 +19,7 @@ const int MAX_SIMULATION =      1 ;  /* number of Monte Carlo Simulations */
 /****************************/
 /*    Monte Carlo Index     */
 /****************************/
-enum class MCPointStatus {
+enum enum class MCPointStatus {
   Uninitialized,
   Valid,
   Unmappable
