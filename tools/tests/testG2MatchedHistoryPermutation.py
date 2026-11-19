@@ -75,6 +75,14 @@ class MatchedHistoryTests(unittest.TestCase):
         self.assertEqual(x["matched_pairs"], 4)
         self.assertIn("top_absolute_feature_correlations", x)
 
+    def test_sign_flip_preserves_whole_vector(self):
+        class FixedRng:
+            def random(self):
+                return 0.9
+        rows = [[1.0, -2.0, 3.0], [4.0, 5.0, -6.0]]
+        self.assertEqual(A.sign_flip_rows(rows, FixedRng()),
+                         [[-1.0, 2.0, -3.0], [-4.0, -5.0, 6.0]])
+
     def test_duplicate_side_rejected(self):
         r = row(1, "LF", 100, 40, 1, 8.0, 4, 1.0)
         with tempfile.TemporaryDirectory() as d:
