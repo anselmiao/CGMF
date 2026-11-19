@@ -33,6 +33,7 @@ using namespace std;
 #include "FissionFragments.h"
 #include "rngcgm.h"
 #include "gamma_transition_selection.h"
+#include "g2_sidecar_transaction.h"
 
 void recordEmittedParticles (void);
 void recordEmittedParticlesFission (fissionEventType *);
@@ -78,16 +79,9 @@ static bool gammaTimeStampValid [ MAX_CASCADE ];
 static unsigned long long g2SidecarEventId = 0;
 static std::string g2SidecarFragmentSide;
 
-struct G2SidecarPendingEvent {
-  unsigned long long eventId = 0;
-  bool hasLF = false;
-  bool hasHF = false;
-  std::string neutronLF, neutronHF;
-  std::string mixedLF, mixedHF;
-};
-static G2SidecarPendingEvent g2PendingEvent;
+static G2SidecarEventBuffer g2PendingEvent;
 
-static void g2AppendPayload(const char *path, const std::string &payload, const char *label) {
+static void g2AppendPayload(const char *path, const std::string &payload) {
   if (!path || !*path || payload.empty()) return;
   std::ofstream output(path, std::ios::out | std::ios::app);
   if (!output) {
@@ -102,40 +96,22 @@ static void g2AppendPayload(const char *path, const std::string &payload, const 
 static void g2StageAndCommitEvent(unsigned long long eventId, const std::string &side,
                                   const std::string &neutronPayload,
                                   const std::string &mixedPayload) {
-  if (eventId == 0 || (side != "LF" && side != "HF")) {
-    cgmTerminateCode("[G2 sidecar] invalid event context while staging");
-    return;
-  }
   const char *neutronPath = std::getenv("CGMF_G2_SIDECAR");
   const char *mixedPath = std::getenv("CGMF_G2_MIXED_HISTORY_SIDECAR");
   if ((!neutronPath || !*neutronPath) && (!mixedPath || !*mixedPath)) return;
 
-  if (side == "LF") {
-    if (g2PendingEvent.eventId != 0 || g2PendingEvent.hasLF || g2PendingEvent.hasHF) {
-      cgmTerminateCode("[G2 sidecar] stale or duplicate pending LF event");
-      return;
-    }
-    g2PendingEvent.eventId = eventId;
-    g2PendingEvent.hasLF = true;
-    g2PendingEvent.neutronLF = neutronPayload;
-    g2PendingEvent.mixedLF = mixedPayload;
+  const G2SidecarStageResult result =
+      g2PendingEvent.stage(eventId, side, neutronPayload, mixedPayload);
+  if (result == G2SidecarStageResult::Invalid) {
+    cgmTerminateCode("[G2 sidecar] invalid LF/HF event-pair staging sequence");
     return;
   }
-
-  if (g2PendingEvent.eventId != eventId || !g2PendingEvent.hasLF || g2PendingEvent.hasHF) {
-    cgmTerminateCode("[G2 sidecar] HF event does not match exactly one pending LF event");
-    return;
-  }
-  g2PendingEvent.hasHF = true;
-  g2PendingEvent.neutronHF = neutronPayload;
-  g2PendingEvent.mixedHF = mixedPayload;
+  if (result == G2SidecarStageResult::Staged) return;
 
   // Keep each file's LF+HF event payload contiguous in one append/write operation.
-  g2AppendPayload(neutronPath, g2PendingEvent.neutronLF + g2PendingEvent.neutronHF,
-                  "CGMF_G2_SIDECAR");
-  g2AppendPayload(mixedPath, g2PendingEvent.mixedLF + g2PendingEvent.mixedHF,
-                  "CGMF_G2_MIXED_HISTORY_SIDECAR");
-  g2PendingEvent = G2SidecarPendingEvent();
+  g2AppendPayload(neutronPath, g2PendingEvent.neutronPair());
+  g2AppendPayload(mixedPath, g2PendingEvent.mixedPair());
+  g2PendingEvent.reset();
 }
 
 void setG2SidecarContext(unsigned long long event_id, const char *fragment_side) {
