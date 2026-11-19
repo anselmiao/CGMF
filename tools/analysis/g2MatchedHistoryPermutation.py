@@ -196,6 +196,18 @@ def test_pairs(pairs, caliper, permutations, seed):
         if statistic(yp) >= observed:
             extreme += 1
     distances = [d for d,_,_ in selected]
+    feature_corr = []
+    for i, name_x in enumerate(FEATURES):
+        xs = [row[i] for row in dx]
+        for j, name_y in enumerate(FEATURES):
+            ys = [row[j] for row in dy]
+            mx, my = sum(xs)/len(xs), sum(ys)/len(ys)
+            vx = sum((v-mx)**2 for v in xs)
+            vy = sum((v-my)**2 for v in ys)
+            if vx > 0 and vy > 0:
+                corr = sum((a-mx)*(b-my) for a,b in zip(xs,ys))/math.sqrt(vx*vy)
+                feature_corr.append((abs(corr), corr, name_x, name_y))
+    feature_corr.sort(reverse=True)
     return {
         "caliper_standardized_rms": caliper,
         "matched_pairs": len(selected),
@@ -205,6 +217,10 @@ def test_pairs(pairs, caliper, permutations, seed):
         "maximum_match_distance": max(distances),
         "omnibus_statistic": observed,
         "permutation_p_upper_tail": (1+extreme)/(1+permutations),
+        "top_absolute_feature_correlations": [
+            {"LF_feature_difference": a, "HF_feature_difference": b, "correlation": r}
+            for _, r, a, b in feature_corr[:10]
+        ],
         "permutations": permutations,
         "seed": seed,
         "permutation_unit": "within-pair LF/HF event-label swap (whole multivariate history vector)",
