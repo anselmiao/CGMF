@@ -32,6 +32,7 @@ using namespace std;
 #include "kinematics.h"
 #include "FissionFragments.h"
 #include "rngcgm.h"
+#include "gamma_transition_selection.h"
 
 void recordEmittedParticles (void);
 void recordEmittedParticlesFission (fissionEventType *);
@@ -39,6 +40,7 @@ void recordEmittedParticlesFission (fissionEventType *);
 static void    mcHistoryLoop            (MCPoint, Pdata *, double **);
 //static MCPoint mcFindNext               (int, int);
 static MCPoint mcFindNext               (int, int, int, int);
+static int       mcSelectE1DiscreteBridge (int, double, int, int);
 static int     mcGammaCascade           (int, int, double **);
 static MCPoint mcSampleStart            (double, Parity **);
 static MCPoint mcFixedStart             (double, Parity **);
@@ -382,6 +384,28 @@ void specMCMain(double initJ, int initP, double targE, double spinf, unsigned lo
 /**********************************************************/
 /*      Monte Carlo Neutron and Gamma Emission            */
 /**********************************************************/
+static int mcSelectE1DiscreteBridge(int nucleus, double initialEnergy,
+                                    int spinIndex, int initialParity)
+{
+  if (nucleus < 0 || ncl[nucleus].ndisc <= 0) return -1;
+  // Continuum population index j represents J=j+halfint(first-level spin).
+  const double initialSpin =
+      static_cast<double>(spinIndex) + halfint(ncl[nucleus].lev[0].spin);
+  int selected = -1;
+  double bestRandom = -1.0;
+  for (int k = 0; k < ncl[nucleus].ndisc; ++k) {
+    const Level &candidate = ncl[nucleus].lev[k];
+    if (!cgmf::isAllowedGammaTransition(
+            initialEnergy, initialSpin, initialParity,
+            candidate.energy, candidate.spin, candidate.parity,
+            cgmf::GammaTransitionMultipolarity::E1)) continue;
+    // Preserve legacy equal-candidate sampling among E1-allowed levels.
+    const double draw = rng_cgm();
+    if (draw > bestRandom) { bestRandom = draw; selected = k; }
+  }
+  return selected;
+}
+
 void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
 {
 //---------------------------------------
@@ -433,31 +457,9 @@ void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
       } else {
 			double elcut = ncl[c0].lev[ncl[c0].ndisc-1].energy + CONTINUUM_LOWER_CUT;
       if( (mnext.getE() < elcut) && (!mnext.ifDiscrete()) ){
-				int index0=-1 ;
-        int ndisc = ncl[c0].ndisc ;
-        double xpr = -1.;
-        for( int kk2 = 0 ; kk2 <  ndisc ; kk2++ ){
-          if( ncl[c0].lev[kk2].parity * mcurr.getP() > 0 ) continue ; //E1 selection rules only
-          if( fabs( ncl[c0].lev[kk2].spin - mcurr.getJ() ) < 2. && 1. <= ncl[c0].lev[kk2].spin + mcurr.getJ() ){
-            double xpr1 = rng_cgm() ;
-            if( xpr1 > xpr ){
-              xpr = xpr1 ;
-              index0 = kk2;
-            }
-          }
-        }
-				
-        /* if such a transition does not exist, force transition to the closest-j state */
-        if(index0 == -1 ){
-          double delJ=100.;
-          for( int kk2 = 0 ; kk2 <  ndisc ; kk2++ ){
-            if( fabs( ncl[c0].lev[kk2].spin - mcurr.getJ() ) < delJ ){
-              delJ = fabs( ncl[c0].lev[kk2].spin - mcurr.getJ() );
-              index0 = kk2 ;
-            }
-          }
-          //	  cout << " finished, index0 = " << index0 << endl;
-        }
+				const int ndisc = ncl[c0].ndisc;
+        const int index0 = mcSelectE1DiscreteBridge(
+            c0, mcurr.getE(), mcurr.getJ(), mcurr.getP());
         if (index0 < 0 || index0 >= ndisc) {
           mnext.markUnmappable();
         } else {
@@ -567,39 +569,14 @@ MCPoint mcFindNext(int c0, int c1, int jspin, int parity)
   /*** if no transition, force decay to the ground state */
 //  m.set(c0,0,0,0,0.0);
 //  //IS: Ionel :: modified to force the transition into a state allowed by multiplicity 1 transition
-  int index0=-1 ;
-  int ndisc = ncl[c0].ndisc ;
-  if (ndisc <= 0) {
+  const int ndisc = ncl[c0].ndisc;
+  const int index0 = mcSelectE1DiscreteBridge(
+      c0, ncl[c0].max_energy, jspin, parity);
+  if (index0 < 0) {
     m.markUnmappable();
     return m;
   }
-  double xpr = -1.;
-  for( int kk2 = 0 ; kk2 <  ndisc ; kk2++ ){
-    if( ncl[c0].lev[kk2].parity * parity > 0 ) continue ; //E1 selection rules only
-    if( fabs( ncl[c0].lev[kk2].spin - jspin ) < 2. && 1. <= ncl[c0].lev[kk2].spin + jspin ){
-      double xpr1 = rng_cgm() ;
-      if( xpr1 > xpr ){
-        xpr = xpr1 ;
-        index0 = kk2;
-      }
-    }
-  }
-  /* if such a transition does not exist, force transition to the closest-j state */
-  if(index0 == -1 ){
-    double delJ=100.;
-    for( int kk2 = 0 ; kk2 <  ndisc ; kk2++ ){
-      if( fabs( ncl[c0].lev[kk2].spin - jspin ) < delJ ){
-        delJ = fabs( ncl[c0].lev[kk2].spin - jspin );
-        index0 = kk2 ;
-      }
-    }
-  }
-	
-  if (index0 < 0 || index0 >= ndisc) {
-    m.markUnmappable();
-    return m;
-  }
-  m.set(c0, (int)ncl[c0].lev[index0].parity,
+    m.set(c0, (int)ncl[c0].lev[index0].parity,
         (int)ncl[c0].lev[index0].spin, index0,
         ncl[c0].lev[index0].energy);
   m.setDiscrete();
