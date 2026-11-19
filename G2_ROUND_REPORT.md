@@ -1001,3 +1001,47 @@ CGMF 文档说明：数值 spin 或 parity 缺失/未指派时会按 KCK 系统�
 下一步应先从上游 `lanl/CGMF` 历史、发布包或文档源仓库寻找转换 notebook / Python 类及其版本，再用确定的转换器对该 RIPL 行做可复现重建。若转换工具与随机种子无法恢复，应把 (2^+) 标记为历史生成产物、不可完全复现，而不是猜测补值算法或直接改成 ENSDF 的 5/2−。
 
 本轮未修改物理规则、输入数据、golden 或运行事件。
+
+
+## Run #114：⁸⁹Br 最终 spin=2 的运行时语义与补值调用链核验（SOURCE_AUDITED；转换来源仍 BLOCKED）
+
+### 1. 先纠正一个重要歧义：spin=2 不是自旋索引
+
+在官方 CGMF 源码 `libcgmf/include/cgm.h` 中，半整数判断宏定义为：
+
+```c
+#define halfint(x) ( (((int)(x*2.0+0.001) % 2)==1) ? 0.5 : 0.0 )
+```
+
+该宏直接检查数值自旋的两倍是否为奇数。因此，离散文件中的 `spin=2.0` 是整数自旋值，不是从零开始的索引，也不等价于 (5/2)。这与此前已核实的文件字段解析一致：`ripl2levels.cpp` 将 spin 字段直接赋给 `Level.spin`。
+
+### 2. 运行时缺失值修复不会把当前 2,+ 改成别的值
+
+官方 `libcgmf/src/setup.cpp` 的 `statFixDiscreteLevels()`：
+- 仅在某个能级满足 `spin < 0.0` 或 `parity == 0` 时触发修复；
+- 缺失 spin 时按 KCK spin-cutoff 分布抽样；
+- 缺失 parity 时按均匀分布假设随机取 (+1/-1)。
+
+官方 `libcgmf/src/specmc.cpp` 的片段显示，核素初始化后会调用 `statFixDiscreteLevels(&ncl[i])`。但本次运行时快照中的 ⁸⁹Br 基态已是 `spin=2.0, parity=+1`，不满足上述缺失条件，所以这段运行时修复逻辑不会对该基态重新抽样。
+
+这只能排除**运行时缺失值修复**是当前已赋值记录的直接来源；不能据此推断历史生成脚本如何写入 `discreteLevels.dat`。
+
+### 3. 转换脚本的历史定位结果
+
+- 对官方 `lanl/CGMF` 仓库 commit `46ca6451dc5e449d7a9d0ced98eba0b593fcdf14` 做完整递归 Git tree 检查，未发现 `transformLevelDataFile.ipynb` 或 `Nucleus.py`。
+- 对 GitHub path history 分别查询这两个路径，API 返回空提交列表；在当前可查询的官方仓库历史中，没有找到它们作为受版本控制文件的提交记录。
+- 官方 `doc/rtd/discreteLevels.rst` 仍明确描述了该 notebook/class 和 Jπ 缺失处理规则，但文档本身不能替代实际转换实现。
+
+### 4. 当前可支持的结论
+
+- ⁸⁹Br RIPL 源行的数值字段为 `spin=-1.0, parity=0`，括号文字为 `(3/2-,5/2-)`；最终 CGMF 文件为 `spin=2.0, parity=+1`：**COMPUTATION_VERIFIED**（Run #113）。
+- `spin=2.0` 在 CGMF 语义中为整数自旋，不是半整数索引：**SOURCE_AUDITED**。
+- 当前运行时缺失值修复不会修改这条已经完整赋值的记录：**SOURCE_AUDITED**。
+- 最终 `2.0,+1` 是由哪份 RIPL 版本、哪一版 notebook/class、哪一随机状态或人工处理写入：**BLOCKED**。
+- 官方文档描述的“缺失 Jπ 按 KCK/随机宇称补值”是可能的处理类别，但不能仅凭该规则反推出本条最终数值，更不能把括号候选的“第一项”误说成 `2,+`。
+
+### 5. 下一步的最小验证
+
+不再围绕运行时 `statFixDiscreteLevels()` 做重复排查。下一步应定点解析 `ripl3-levels-2015.dat` 中 Z=35、A=89 的原始条目，并与已读取的 `ripl3-levels.dat` 行比较；同时检查该文件的版本头、日期和记录格式。若两份 RIPL 源文件均为未指派 Jπ，则生成器缺失仍是主要阻断项，应将最终 (2^+) 暂列为不可追溯的历史预处理产物，不猜算法、不改输入数据库、不改 E1 选择器。
+
+本轮没有修改物理代码、输入数据库、golden 或事件矩阵。
