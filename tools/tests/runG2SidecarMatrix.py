@@ -49,6 +49,7 @@ def resolve_discrete_level_file(cwd, env, binary):
             candidate = Path(directory) / filename
             if candidate.is_file():
                 return candidate.resolve(), macro
+            return None, f"{macro}-directory-without-file"
     return None, "no-readable-candidate"
 
 
