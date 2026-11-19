@@ -812,3 +812,14 @@ CGMF 官方用户手册明确说明，运行用 `cgmfDiscreteLevels.dat` 从 RIP
 - 已在 `libcgmf/src/ripl2levels.cpp` 增加 `#include "cgmf_config.h"`。该头文件由 `libcgmf/CMakeLists.txt` 的 `configure_file` 生成，且其 build 目录已加入目标编译 include 路径。
 - 修正提交：`67ba723759086cfeb7b5ebd75559f6d7df363d2e`。
 - 状态仍为 `IMPLEMENTED / CI_PENDING`；Run #196 的失败不能被覆盖为成功，后续只以包含该修正的 CI run 判断编译结果。
+
+
+### Run #110 追加简化：避免诊断依赖生成头文件
+
+对 CMake 生成头文件的 include 路径做了保守处理：撤销在 `ripl2levels.cpp` 中包含 `cgmf_config.h` 的改动，并移除该文件对 `INSTALL_DATADIR` / `BUILD_DATADIR` 宏的直接引用。原因是这两个宏属于生成配置，诊断不应为此引入额外编译期 include 依赖。现在：
+
+- C++ 只记录真实打开的文件名、运行时 `datadir`、`CGMFDATA` 和实际加载的目标核素能级表。
+- Python 日志前缀负责按配置头文件解析安装/构建目录优先级，并记录选中路径与 SHA-256。
+- 只有 Python 预检路径与 C++ 实际打开路径吻合时，才将该哈希认定为实际输入文件哈希。
+
+简化提交：`d9bf5e64481feda1b0f8da980a58605b997f2a47`。此前“C++ 侧打印 INSTALL/BUILD 目录存在性”的描述已由本条修正：目录候选解析和文件哈希归 Python 预检日志，C++ 负责提供运行时实际打开路径与内存快照。CI 尚待该提交验证。
