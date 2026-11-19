@@ -174,3 +174,22 @@ Pu-239 热中子 600 事件模型竞争数据中，7 条全矩阵离散-only 起
 因此，简单地让这 7 条记录改走 continuum 分支，并不能构成合格修复：它可能保留初始 (J^pi) 作为顶端 bin 标签，却仍可能选择能量高于当前状态的离散终态，甚至触发只按 J 的回退。不能把该路径直接作为方案 C 的实现。
 
 **下一项源码任务应先定义并测试“未解析初始态 ((U,J^pi)) → 可达离散态”的桥接核：**候选终态必须满足能量可达；转移必须满足所选电磁多极性的角动量/宇称规则；如果没有候选，必须保留为未映射状态并报告失败，不能静默退化到 nearest-J。桥接核的转移概率/剩余能量去向需要有物理依据，不能为通过测试临时补参数。该核完成前，最近能级规则保持现状并明确标注近似。
+
+
+## Run #95：原生回归基准差异归因与严格重基准（COMPUTATION_VERIFIED）
+
+Run #95（commit `0590629244853c57c4e9c1d0f821046b524b9369`）的 CMake Configure、C++ Build、原生模拟执行、全部 G2 分析单测及 31 场景 G2 矩阵均通过。最终失败仅来自三个 serial history 文件与旧基准的逐字节比较。
+
+下载并检查 Run #95 原生输出后，将每个 40-event serial 文件按 20 个 event（每个 event 两条 fragment header）切分为 rank 0 / rank 1 对照：
+
+| 用例 | 新 serial 输出 SHA-256 | 新 rank 0 SHA-256 | rank 1 与旧基准 |
+|---|---|---|---|
+| Pu-242 sf | `bfa266d2d13dec98ed2dc1d425fee94ff691e1f3b162e6075db68c9918c65402` | `d49d9157c3fb5bd4088e4ff02adf7b7a595eeaf05bd6a22cae96d7c40cebddc7` | 完全一致 |
+| U-235 thermal | `2b504cc64d3170fb2736c5c29e0a9119b72c53a6fef21a5689211f2a8f926a5a` | `5a39d3f29c2645c854167c7f47204a77839992ed35b67c79a137fc2aab691972` | 完全一致 |
+| U-235 thermal + time window | `7fc4f1d6742df234275b0094dfc92d872ba373f9c366352b99ca97209458fdbd` | `e168064ab1c2ef8d02dea8a4a082d0211ff76996b64bb8ca92dbf5a914a2feda` | 完全一致 |
+
+旧 rank 1 Git blob SHA 分别为 `511c9ba82b8230cb65379f9e5c3ea3efa1e23436`、`3b4c9e1ad091ae96e3e241ba37579c2184ce27cc`、`1e578d6763972081060001c52022295f884e3097`，与 Run #95 serial 输出后半段切片计算出的 Git blob SHA 逐一相同。变化全部集中在前三个用例的前 20 个 event（rank 0），不是随机波动或 rank 1 漂移。
+
+因此，这三项旧 rank 0 golden 已被 1-based → 0-based 离散起点修复后的确定性输出取代。为避免把整份输出复制进 CMake，改用 CMake 原生 `file(SHA256)` 对 serial 全文件和 MPI rank 0 文件执行严格 SHA-256 回归；MPI rank 1 继续与原始 golden 逐字节比较。旧 rank 0 reference 文件保留作历史溯源，不再作为修复后输出的验收值。其余原生测试及 golden 不变。
+
+这不是放宽门禁：serial、MPI rank 0 仍然要求完整输出字节级相同（SHA-256）；MPI rank 1 仍逐字节比较。Run #95 原始输出 artifact：`cgmf-native-regression-outputs`，artifact ID `14550306265`。

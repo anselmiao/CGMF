@@ -1,0 +1,17 @@
+if(NOT DEFINED INPUT OR INPUT STREQUAL "")
+  message(FATAL_ERROR "INPUT must name a generated CGMF history file")
+endif()
+if(NOT DEFINED EXPECTED_SHA256 OR NOT EXPECTED_SHA256 MATCHES "^[0-9a-fA-F]{64}$")
+  message(FATAL_ERROR "EXPECTED_SHA256 must be a 64-character SHA-256 digest")
+endif()
+if(NOT EXISTS "${INPUT}")
+  message(FATAL_ERROR "History output does not exist: ${INPUT}")
+endif()
+
+file(SHA256 "${INPUT}" ACTUAL_SHA256)
+string(TOLOWER "${EXPECTED_SHA256}" EXPECTED_SHA256)
+if(NOT ACTUAL_SHA256 STREQUAL EXPECTED_SHA256)
+  message(FATAL_ERROR
+    "CGMF history regression mismatch for ${INPUT}: expected ${EXPECTED_SHA256}, got ${ACTUAL_SHA256}")
+endif()
+message(STATUS "CGMF history SHA-256 regression passed: ${INPUT}")
