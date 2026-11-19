@@ -823,3 +823,75 @@ CGMF 官方用户手册明确说明，运行用 `cgmfDiscreteLevels.dat` 从 RIP
 - 只有 Python 预检路径与 C++ 实际打开路径吻合时，才将该哈希认定为实际输入文件哈希。
 
 简化提交：`d9bf5e64481feda1b0f8da980a58605b997f2a47`。此前“C++ 侧打印 INSTALL/BUILD 目录存在性”的描述已由本条修正：目录候选解析和文件哈希归 Python 预检日志，C++ 负责提供运行时实际打开路径与内存快照。CI 尚待该提交验证。
+
+
+## Run #111：CI 运行时离散能级快照核验（COMPUTATION_VERIFIED；⁸⁹Br 数据根因已显著收敛）
+
+### 1. CI 运行结果与产物
+
+- CI Run #206，run ID：`44604419671`；代码提交：`d9bf5e64481feda1b0f8da980a58605b997f2a47`。
+- CMake Configure、C++ Build、Native CGMF test suite 均 PASS。
+- G2 三层分析、conditional full-history、matched conditional history、event-state model competition、fragment-state ablation、RNG seed matrix 等合成夹具单元测试均 PASS。
+- G2 sidecar 完整矩阵仍 FAIL；后续条件分析/模型竞争/消融步骤因矩阵失败而 SKIPPED。原生 golden enforcement 仍 FAIL。不得把本次 CI 记为全套通过。
+- 成功保存并下载 artifact `cgmf-g2-mixed-history-matrix`，artifact ID `14568633111`。实际检查 `cf252-sf/on/sidecar-on.stdout`，诊断内容完整。
+
+### 2. 运行时文件身份：路径和 SHA 对上
+
+C++ 实际输出：
+`opened_file=/home/runner/work/CGMF/CGMF/libcgmf/../data/discreteLevels.dat`
+
+Python 预检输出：
+`selected_by=BUILD_DATADIR`
+`selected_file=/home/runner/work/CGMF/CGMF/data/discreteLevels.dat`
+`CGMFDATA=<unset>`
+
+两条路径规范化后指向同一个文件；因此 Python 预检 SHA 可归属到 C++ 实际打开的数据文件：
+
+`c79679e4247ddf69e3766ccce0b3177fcb7b253e26fd50ff621d2721d023c80e`
+
+本轮第一次把 CI 实际打开路径、预检路径、SHA-256 三者闭合为同一数据身份。此结论仅针对 Run #206 的该次 CI 执行。
+
+### 3. C++ 内存中实际加载的 ⁸⁹Br / ¹³²I 记录
+
+C++ 在数据库读取完成后从 `allLevels` / `numberLevels` / `zaidIndex` 输出：
+
+| ZAID | 核素 | ndisc | level_index | energy (MeV) | spin (ℏ) | parity |
+|---:|---|---:|---:|---:|---:|---:|
+| 35089 | ⁸⁹Br | 1 | 0 | 0 | 2 | +1 |
+| 53132 | ¹³²I | 1 | 0 | 0 | 4 | +1 |
+
+源码核对：`ripl2levels.cpp` 将文件字段 `s` 直接赋给 `Level.spin`，将字段 `p` 直接赋给 `Level.parity`；没有在这段载入逻辑中把 ⁸⁹Br 的 spin/parity 转换成另一套物理 Jπ。因此该快照是程序内存中的实际字段值，不只是文本文件 grep 结果。
+
+### 4. 对先前物理核验的影响
+
+**⁸⁹Br：**
+- ENSDF Adopted Levels 记录基态 0 keV `((5/2^-)))，130.3 keV `((3/2^-))`。
+- 本次 CI 的 CGMF 运行时库却只载入 0 keV `J=2, π=+` 一个态。
+- 这不是微小的能级截断差异，而是基态 Jπ 与 ENSDF adopted 值存在实质差异；当前文件既没有 130.3 keV 态，也没有把基态记录为 ENSDF 的 5/2−。
+- 对此前 Run #151 event 34 的报告初态 `Ji=3, πi=+`，若使用当前已确认的同一 Git 数据 blob / 运行时记录，则唯一候选态 `Jf=2, πf=+` 会因宇称相同而被 E1 选择器拒绝；而 ENSDF 的 `5/2−` 基态在角动量和宇称条件上允许 E1。故当前证据强烈指向**输入离散库的 ⁸⁹Br 基态 Jπ 记录差异是该 parity rejection 的直接数据层解释**，而不是先前已证明的选择器宇称转换错误。
+- 但尚未读取原始 RIPL-3 对应条目及 `transformLevelDataFile.ipynb` / `Nucleus.py` 的逐步处理，不能判定差异究竟来自 RIPL 原始评价、预处理选项/补值，还是数据文件生成版本；也不能把 ENSDF 值直接覆盖进模拟输入。
+
+**¹³²I：**
+- 运行时库只载入基态 `0 MeV, J=4, π=+`，与 ENSDF 基态 `4+` 一致。
+- ENSDF 中约 120 keV 的 `8−` 长寿命异能态没有进入当前 CGMF 离散库；因此它不可能是本次 CGMF E1 bridge selector 从该库选出的候选终态。
+- 其外部存在性是 PAPER_VERIFIED，但并不建立连续初态到该异能态的实际分支或跃迁强度。
+
+### 5. 当前失败边界
+
+本次 artifact 的首个模拟失败仍是 event 6、¹³⁶I、HF、`ndisc=1`、角动量拒绝；Run #206 的矩阵在到达 ⁸⁹Br event 34 前已终止。因此：
+- 运行时文件身份及 ⁸⁹Br/¹³²I 内存快照：**COMPUTATION_VERIFIED**；
+- ⁸⁹Br CGMF 输入 Jπ 与 ENSDF adopted Jπ 差异：**PAPER_VERIFIED + COMPUTATION_VERIFIED**；
+- 该差异解释 Run #151 event 34 parity rejection：**STRONGLY_SUPPORTED / SAME-DATA-CROSS-RUN INFERENCE**，不是 Run #206 同一事件的直接复现；
+- ⁸⁹Br 差异的上游来源（RIPL 原始数据或生成处理）：**BLOCKED**；
+- ¹³²I 120 keV 异能态是否存在本事件真实跃迁分支：**BLOCKED**；
+- G2 sidecar matrix、完整事件级证据链：仍 **FAIL / INCOMPLETE**。
+
+### 6. 下一步（最小化、只审数据生成源）
+
+不重跑完整矩阵，不改选择器，不改 E1 规则，不把 ENSDF 直接拼入数据库。下一轮只追踪 ⁸⁹Br 的来源链：
+1. 定位仓库内 RIPL 原始输入、转换 notebook / Python 处理代码、数据生成版本及其来源元数据；
+2. 核对 Z=35,A=89 的原始 Jπ 选项、缺失值标志、是否有多解，以及转换时如何选择或补值；
+3. 若仓库不含原始 RIPL 输入，明确记录外部源文件/版本/校验值缺口，不猜测原因；
+4. 只有确定来源后，才讨论是否需要单独的数据修正提案；任何数据修正都必须单独分支、保留原 golden，并以新的验证协议评估，不能混入本轮审计。
+
+本轮没有修改模拟规则、离散数据库或 golden；仅通过环境门控诊断完成 CI 运行时数据来源和内存记录取证。
