@@ -1,6 +1,7 @@
 #include "gamma_transition_selection.h"
 
 #include <cassert>
+#include <limits>
 
 using cgmf::GammaTransitionMultipolarity;
 using cgmf::isAllowedGammaTransition;
@@ -34,6 +35,11 @@ int main() {
   assert(!isAllowedGammaTransition(2.0, 1.0, 0, 1.0, 0.0, -1,
                                    GammaTransitionMultipolarity::E1));
   assert(!isAllowedGammaTransition(2.0, -0.5, 1, 1.0, 0.5, -1,
+                                   GammaTransitionMultipolarity::E1));
+  const double nan = std::numeric_limits<double>::quiet_NaN();
+  assert(!isAllowedGammaTransition(2.0, nan, 1, 1.0, 0.5, -1,
+                                   GammaTransitionMultipolarity::E1));
+  assert(!isAllowedGammaTransition(2.0, 1.5, 1, 1.0, nan, -1,
                                    GammaTransitionMultipolarity::E1));
   return 0;
 }
