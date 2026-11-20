@@ -127,12 +127,12 @@ def audit(ripl: dict[str, RiplRecord], cgmf: dict[str, CgmfRecord], selected: se
         unknown_jpi = sum(1 for _, _, spin, parity in rr.levels if spin < 0 or parity not in (-1, 1))
         if len(rr.levels) != rr.nol:
             status = "RIPL_PARSE_INCOMPLETE"
-        elif cc.ndisc == rr.nmax and rr.nmax <= rr.nol:
-            status = "MATCHES_RIPL_NMAX_CUTOFF"
-        elif cc.ndisc < rr.nmax:
-            status = "CGMF_BELOW_RIPL_NMAX"
-        elif cc.ndisc > rr.nmax and cc.ndisc <= rr.nol:
-            status = "CGMF_ABOVE_RIPL_NMAX_REVIEW"
+        elif min(rr.nmax, rr.nc) > 0 and cc.ndisc == min(rr.nmax, rr.nc):
+            status = "MATCHES_MIN_NMAX_NC_BOUND"
+        elif cc.ndisc < min(rr.nmax, rr.nc):
+            status = "CGMF_BELOW_MIN_NMAX_NC_BOUND"
+        elif cc.ndisc > min(rr.nmax, rr.nc) and cc.ndisc <= rr.nol:
+            status = "CGMF_ABOVE_MIN_NMAX_NC_BOUND_REVIEW"
         elif cc.ndisc < rr.nol:
             status = "CGMF_FEWER_THAN_RIPL_NOL_REVIEW"
         elif cc.ndisc > rr.nol:
