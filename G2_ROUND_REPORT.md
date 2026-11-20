@@ -1530,3 +1530,115 @@ Run #270（ID `44692563592`，SHA `992c51c1f50b26032e9253bfc2d6d99db852ef0e`）B
 本轮批量筛查到 528 个 RIPL 第一能级 J/π 未指派的匹配核素，其中 462 条无候选文本；机械套用公开默认规则时 329 条输出不同。但手册“completely unknown ground state”的适用范围尚需历史转换器确认，因此这 329 条只是待核验差异，不直接定性为错误。
 
 结论是：生产专用文件中至少有两个可复核的 Jπ 输出与公开手册规则不一致，历史 Python 转换器具体实现及差异成因仍 **BLOCKED**。不据此自动覆盖数据，不改物理规则、RNG 或 golden。完整 G2、P/H/O 与气论证据状态仍未升级。
+
+
+## Run #130：CI 触发收敛与 G2 后续研究路线锁定（WORKFLOW_COMMITTED / PLAN_RECORDED）
+
+### 1. CI 运行数量审计
+
+截至本轮检查，GitHub Actions API 返回累计 **275 次 workflow runs**。最近一组重复运行：
+
+- Run #274：push，SHA `1562f0145a04d0da543b9d7187703fe34cd00952`，失败；
+- Run #275：pull_request，SHA 相同，失败；
+- 两次运行均属于 PR #3（head：`qi/fix-discrete-start-index`，base：`qi/g2-unified-history-v1`）。
+
+因此，至少这组重复记录不是两次独立科学计算，而是同一提交分别被 push 与 pull_request 事件触发。旧 workflow 同时监听三个分支的 push 和所有 pull_request，且没有并发组控制；连续提交会进一步叠加运行。
+
+### 2. 本轮已提交的 CI 修改
+
+已更新 `.github/workflows/cgmf-g2-ci.yml`，提交：
+
+- Commit：`b78d6fc071d8aba7c774c6c9612ee1a9b0ef5b3b`
+- Branch：`qi/fix-discrete-start-index`
+- Message：`ci: deduplicate G2 pull request workflow runs`
+
+新策略：
+
+1. 自动检查改为 `pull_request`，只针对三个 G2 集成目标分支：`qi/g2-neutron-transition-history`、`qi/g2-unified-history-v1`、`qi/fix-discrete-start-index`。
+2. 移除分支 `push` 触发，避免 PR 同一 SHA 同时产生 push 与 pull_request 两次完整矩阵。
+3. 保留 `workflow_dispatch`，允许有明确目的时手动运行独立验证。
+4. 增加并发组 `cgmf-g2-${{ github.event.pull_request.number || github.ref }}`，并设置 `cancel-in-progress: true`；同一 PR 的新提交会取消旧的在途运行，避免继续消耗资源跑已过期提交。
+5. 暂不加 `paths` / `paths-ignore` 过滤。GitHub 文档说明，路径过滤跳过整个 workflow 时，关联 PR check 可能保持 Pending；在尚未核实仓库必需检查配置前，不以减少文档更新触发为代价引入 PR 合并阻断风险。
+
+本次只修改 CI 触发和并发治理；没有改动 CGMF 物理代码、核数据、G2 矩阵、随机种子、golden 或分析判据。
+
+### 3. 当前失败状态：不能把 CI 去重误当作科学问题解决
+
+Run #274/#275 的阶段结果显示：
+
+- Configure、Build 通过；
+- 原生 CGMF 测试步骤摘要为 success；
+- G2 合成 fixture 单元测试及 RNG seed matrix validator 通过；
+- 完整 G2 neutron/mixed-history sidecar matrix 步骤失败；
+- 后续 conditional-history、event-state competition、fragment-state ablation、shared-energy decomposition 因前置失败而跳过；
+- 最后的 native regression baseline enforcement 也失败。
+
+注意：原生测试步骤使用 `continue-on-error: true`，因此必须同时检查真实 CTest 结果和最终 enforcement；不能仅凭步骤摘要的 success 判断原生回归全部通过。当前记录尚未完成 Run #274/#275 失败日志逐条归因，本报告不把具体根因写成已证实结论。
+
+### 4. 后续执行规划与升级门槛
+
+#### Phase A — 验证 CI 收敛是否生效
+
+- 等待本次 workflow 文件提交触发 PR #3 的新运行。
+- 检查是否只产生一条 PR synchronize 运行，而不再为同一 SHA 产生 push + pull_request 配对运行。
+- 检查同一 PR 快速连续提交时，旧运行是否被 concurrency 取消，新 SHA 是否成为唯一有效结果。
+- 单独确认 `workflow_dispatch` 仍可手动触发。
+- 通过 GitHub Actions 页面/运行记录核实结果；在观察到新运行前，CI 去重行为标记为 **COMMITTED / RUNTIME_VERIFICATION_PENDING**。
+
+#### Phase B — 对失败建立逐层根因表
+
+以最新有效 PR run 的 artifact 为准，逐项分开审计：
+
+1. native CTest：失败测试名、输入核素、事件号、状态、退出码、golden 差异；
+2. G2 sidecar matrix：第一个失败 case、event、fragment、能量、自旋宇称、bridge rejection 分类；
+3. 数据链：运行时离散能级、源文件记录、RIPL 原始记录、ENSDF 评价之间的可追踪关系；
+4. 分析链：确认哪些步骤因 matrix 未完整生成而未执行，禁止将部分 artifact 当成完整样本。
+
+输出一张 `failure -> source evidence -> reproducibility -> disposition` 表。没有完整运行的 case 只能标为 incomplete，不进入 P/H/O 统计。
+
+#### Phase C — 核数据转换链审计（当前关键阻塞）
+
+优先恢复/追溯官方文档提及的离散能级预处理链（`transformLevelDataFile.ipynb`、`Nucleus.py` 或其历史版本），并对照：
+
+- RIPL 原始记录；
+- 中间转换记录；
+- 最终 `data/discreteLevels.dat`；
+- CGMF 运行时对象。
+
+优先核查 ⁸⁹Br、¹⁰⁵Zr、¹³⁶I，以及 ¹⁵C、²³Mg 和异常频次较高的核素。已有 114 条奇质量数整数 J 记录、其中 77 条匹配到 RIPL 原始半整数 J 的发现，仍是数据完整性审计结果；转换器具体缺陷及逐条可信 Jπ 仍为 **BLOCKED**。不得用自动规则直接覆盖生产数据库。
+
+#### Phase D — 受控修复与完整矩阵恢复
+
+- 只有在转换来源和字段语义可复现后，才提出 test-only 数据修复候选。
+- 每个候选都要保留原始值、候选值、来源、适用规则、影响核素及差异报告。
+- 先运行最小定向回归，再运行 native regression，再运行完整 G2 sidecar matrix。
+- 不删除失败事件、不放宽 E1/M1/E2 选择规则、不增加未经推导的强度参数、不改写 golden 来让测试变绿。
+- 完整矩阵全部完成并通过结构校验后，才允许执行完整 conditional-history、matched-history、event-state competition、fragment-state ablation 和 shared-energy decomposition。
+
+#### Phase E — P/H/O 竞争识别
+
+完整数据恢复后，严格按已确定的 P/H/O 竞争识别协议执行：
+
+- 固定训练/测试拆分和互不重叠的 RNG seed ranges；
+- 先验证事件完整性、状态变量定义、缺失机制和跨 case 可比性；
+- 在控制低阶共享变量、能量、A/Z、HF 状态等条件后，比较 P/H/O 候选；
+- 使用预注册失败判据和多折独立测试；
+- 只有当模型在独立 seed ranges 上可区分且稳健时，才升级相应候选；否则记录不可辨识或证据不足，不补参数、不事后改判据。
+
+#### Phase F — 气论映射边界
+
+G2 是核裂变统计模型与事件历史数据接口。即使获得稳定的高阶条件结构，也必须先证明其不是能量、守恒量、初态分布、模型设定或核数据缺陷的残余相关。之后才可将状态转移视为气论脉动的候选观测接口，将事件级守恒与联合历史视为通量平衡/配分闭合的候选接口。
+
+目前气论映射仍为 **CANDIDATE**，不是气论机制证明；本轮 CI 治理与核数据审计不构成正向气论证据。
+
+### 5. 本轮状态
+
+- CI 去重配置已写入并提交：**COMMITTED**。
+- PR #3 目标分支与源分支已由 GitHub API 核实：**SOURCE_AUDITED**。
+- 新 CI 触发策略实际运行效果：**RUNTIME_VERIFICATION_PENDING**。
+- Run #274/#275 的完整矩阵失败根因：**BLOCKED / NEED LOG AUDIT**。
+- 离散能级转换器缺陷：**BLOCKED**。
+- 完整 G2 history matrix、P/H/O 竞争结果：**NOT ESTABLISHED**。
+- 气论 G2 机制映射：**CANDIDATE**。
+
+本轮没有改变任何物理模型或数据判据。
