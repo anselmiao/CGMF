@@ -592,8 +592,35 @@ void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
       double emin = (ncl[c].excitation[k+1] +  ncl[c].excitation[k])*0.5;
       if(emin < ncl[c].lev[ncl[c].ndisc-1].energy) emin = ncl[c].lev[ncl[c].ndisc-1].energy;
 
-			/*** perturbation to the final state energy within its energy bin */
-			double ex = emin + (emax-emin)*rng_cgm();
+      /*** perturbation to the final state energy within its energy bin */
+      // Keep exactly one RNG draw here so opt-in diagnostics do not alter
+      // the stochastic stream or random-number consumption order.
+      const double sampleU = rng_cgm();
+      const double ex = emin + (emax-emin)*sampleU;
+      const char *binSampleDiagnostic =
+          std::getenv("CGMF_G2_BIN_SAMPLE_DIAGNOSTIC");
+      if (binSampleDiagnostic && *binSampleDiagnostic &&
+          g2SidecarEventId > 0 && g2SidecarEventId <= 10) {
+        const double lowerCut =
+            ncl[c].lev[ncl[c].ndisc-1].energy + CONTINUUM_LOWER_CUT;
+        std::cerr << std::setprecision(17)
+                  << "[G2 BIN SAMPLE] event_id=" << g2SidecarEventId
+                  << " fragment_side=" << g2SidecarFragmentSide
+                  << " Z=" << ncl[c].za.getZ()
+                  << " A=" << ncl[c].za.getA()
+                  << " k=" << k
+                  << " bin_center_MeV=" << ncl[c].excitation[k]
+                  << " Emin_MeV=" << emin
+                  << " Emax_MeV=" << emax
+                  << " u=" << sampleU
+                  << " E_sample_MeV=" << ex
+                  << " E_lower_cut_MeV=" << lowerCut
+                  << " ndisc=" << ncl[c].ndisc
+                  << " J_index=" << mnext.getJ()
+                  << " parity=" << mnext.getP()
+                  << " below_cut=" << (ex < lowerCut ? 1 : 0)
+                  << std::endl;
+      }
       mnext.setE(ex);
     }
 
