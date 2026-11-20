@@ -182,3 +182,50 @@ Do not change the production default or overwrite `data/discreteLevels.dat`.
 - No event was skipped and no continuum floor was introduced.
 - No A/B G2 run was performed in this audit.
 - This is an audit-note commit only; it is not a physics result or a passing G2 workflow.
+
+
+## F. CI runtime-path audit: current G2 run #44808780129
+
+A later full build/G2 workflow produced a runtime data audit from the first Cf-252 SF matrix case. The artifact `cgmf-g2-mixed-history-matrix` (artifact ID `14663674854`) contains `cf252-sf/on/sidecar-on.stdout`. Its audit header records:
+
+```text
+[CGMF DATA AUDIT] opened_file=/home/runner/work/CGMF/CGMF/libcgmf/../data/discreteLevels.dat
+[CGMF DATA AUDIT] datadir=/home/runner/work/CGMF/CGMF/libcgmf/../data/
+[CGMF DATA AUDIT] CGMFDATA=<unset>
+...
+[CGMF DATA AUDIT PYTHON] CGMFDATA=<unset>
+[CGMF DATA AUDIT PYTHON] selected_by=BUILD_DATADIR
+[CGMF DATA AUDIT PYTHON] selected_file=/home/runner/work/CGMF/CGMF/data/discreteLevels.dat
+[CGMF DATA AUDIT PYTHON] sha256=c79679e4247ddf69e3766ccce0b3177fcb7b253e26fd50ff621d2721d023c80e
+```
+
+The runtime SHA-256 exactly matches the frozen raw-byte SHA-256 recorded in section E for the checked-in `data/discreteLevels.dat`. The runtime path was selected through `BUILD_DATADIR`; `CGMFDATA` was unset. For this CI execution, the evidence therefore **rules out a current-working-directory `DISCRETEDATA` shadow file** and identifies the actual loaded file as the frozen repository data artifact.
+
+The same audit reports:
+
+| ZAID | Nuclide | Runtime ndisc | Loaded discrete record |
+|---:|---|---:|---|
+| 35089 | Br-89 | 1 | 0 keV, J=2, positive parity |
+| 53132 | I-132 | 1 | 0 keV, J=4, positive parity |
+| 53136 | I-136 | 1 | 0 keV, J=1, negative parity |
+
+For Run #317 / I-136 event 6, the archived sidecar-on output independently records the lower-cut failure at (E=0.019063529367160315) MeV, (J^\pi=6^-), `ndisc=1`, with `rejected_angular_momentum=1` and no accepted discrete state. This reproduces the essential bridge failure under the identified frozen input file.
+
+### Workflow result and scope
+
+Workflow: [#44808780129](https://github.com/anselmiao/CGMF/actions/runs/44808780129), commit `90b273d71738b747053888f5c22d2762fdcadce1`.
+
+- Build: passed.
+- Deterministic targeted candidate tests: 17/17 passed, including the corrected I-132 uncertain (22(11))-keV record assertion.
+- Synthetic G2 analysis, conditional-history, matched-history, event-state, fragment-state tests: passed.
+- RNG matrix validator: 31 cases, no same-condition seed-range overlaps.
+- Native CTest: 74% passed; 26/99 tests reported failed, comprising 13 execution failures and 13 dependent diff tests not run. The workflow step is configured to continue so the G2 diagnostics can still run; the final enforcement step fails on the native regression outcome.
+- Complete G2 sidecar matrix: failed immediately in case 1/31 (`cf252-sf`, ZAID 98252, 200 events, seeds 1–200), as the CGMF executable returned 255. The sidecar-on output contains the I-136 event-6 bridge failure. Later matrix cases and downstream three-fold analyses were not run.
+
+### Updated interpretation
+
+For this CI run, the question “which file did the runtime open?” is now **COMPUTATION_VERIFIED**: it opened the repository's frozen `data/discreteLevels.dat` with the expected SHA-256. The earlier hypothesis of a working-directory shadow file is not supported for this run.
+
+The separate question “why does the prepared file contain only one I-136 discrete level, and what exact historical transformation produced it?” remains **BLOCKED**. The runtime-path audit does not recover the original data-preparation invocation, and it does not establish that all eleven RIPL entries are valid unique-(J^\pi) CGMF discrete levels. No production data or selection rule was changed in this workflow.
+
+The G2 matrix result is a real execution failure, not a complete G2 validation. The 17/17 candidate-unit-test result does not promote the physical sidecar matrix to a pass.
