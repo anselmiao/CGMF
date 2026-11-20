@@ -257,3 +257,85 @@ The immediate event-level causal chain is now directly observed in one CI execut
 4. With only the 0-keV (1^-) state loaded, the bridge found no angular-momentum-allowed endpoint and terminated the event.
 
 This confirms the trigger and failure mechanism for this archived event. It does **not** establish that the statistical continuum population is physically wrong, that the perturbation algorithm is defective, or that any particular alternative discrete-level file is the correct remedy. Historical preparation provenance remains **BLOCKED**. Do not clamp the energy, add a fabricated transition, or insert the energetically inaccessible 201-keV isomer.
+
+
+
+## 8. Same-seed diagnostic A/B and repeat event-6 failure (CI run #44815596766)
+
+**Run:** https://github.com/anselmiao/CGMF/actions/runs/44815596766  
+**Branch head:** `5cf85841c689f1352060b2cb8b4506144051907c`  
+**Case:** Cf-252 spontaneous fission, ZAID 98252, 200 events, default seed sequence corresponding to events 1–200.
+
+### 8.1 Diagnostic non-interference probe
+
+A dedicated probe ran the same binary and inputs twice, with `CGMF_G2_BIN_SAMPLE_DIAGNOSTIC` disabled and enabled. Both executions also enabled the population diagnostic, RNG audit, and identical sidecar destinations/run identifier within separate working directories.
+
+Observed results from CI log:
+
+- diagnostic off: process exit 255;
+- diagnostic on: process exit 255;
+- the probe reported: `Diagnostic A/B non-interference verified: 5 comparisons`.
+
+The five comparisons were:
+1. `histories.cgmf.0` byte equality;
+2. `rng-audit.tsv` byte equality;
+3. `neutron-transition.jsonl` byte equality;
+4. `mixed-history.jsonl` byte equality;
+5. stdout equality after removing only the explicitly enumerated diagnostic prefixes.
+
+**Important limitation:** the archived matrix artifact's `rng-audit.tsv` is zero bytes because the process terminates with exit 255 before a completed audit is written. Thus the RNG-audit comparison is equality of two empty files; it is not an independent positive verification of the consumed RNG stream. The other four comparisons, especially the legacy history and both sidecars, are nonempty and byte-identical. The probe verifies that this diagnostic toggle did not alter the observed failing execution's outputs or exit status; it does not establish universal non-interference for all configurations or prove the RNG stream via the audit file.
+
+Status: `COMPUTATION_VERIFIED` for the fixed Cf-252 200-event A/B case, with the RNG-audit limitation above.
+
+### 8.2 Repeat of the event-6 failure
+
+The complete matrix step then ran the sidecar-on case and failed immediately in case 1/31:
+
+```text
+[1/31] cf252-sf: ZAID=98252, En=0.0 MeV, event_ids=1..200, seeds=1..200
+...
+cgmf.x ... returned non-zero exit status 255
+```
+
+The archived `cf252-sf/on/sidecar-on.stdout` independently repeats the event-6 chain. In the final I-136 bin it records:
+
+- bin centre: 0.029303252558488514 MeV;
+- perturbation interval: [0.014651626279244257, 0.054303252558488516] MeV;
+- sampled coordinate: (u=0.11126663650175375);
+- sampled energy: 0.019063529367160315 MeV;
+- lower cut: 0.020 MeV;
+- `ndisc=1`, initial state (J^\pi=6^-);
+- bridge counters: `rejected_angular_momentum=1`, all other rejection counters zero, `accepted=0`.
+
+The process then reports: `lower-cut transition has no mappable discrete state`.
+
+This is a repeat observation of the same deterministic failure under the same fixed configuration. It does not supply an alternative endpoint or validate a replacement level scheme.
+
+### 8.3 CI result classification
+
+| Check | Result | Interpretation |
+|---|---|---|
+| Configure/build | PASS | Code compiles |
+| Native CGMF test suite | PASS | Native tests completed successfully |
+| G2 synthetic analysis tests | PASS | Tested analysis logic/fixtures |
+| RNG seed matrix validator | PASS, 31 cases | No same-condition seed-range overlaps |
+| Diagnostic filter tests | PASS, 3 tests | Only known diagnostic prefixes are filtered |
+| Deterministic level candidate tests | PASS, 17 tests | Candidate validation tests pass; no production data update |
+| Fixed-seed diagnostic A/B | PASS, 5 comparisons | Fixed-case output non-interference, with empty RNG-audit caveat |
+| Full G2 sidecar matrix | FAIL, case 1/31 | I-136 event-6 lower-cut bridge failure; later cases not executed |
+| Downstream conditional/model analyses | SKIPPED | Matrix failure prevented execution |
+
+Do not report this workflow as an overall pass. The native suite and targeted tests passed, while the full sidecar matrix and the workflow's final enforcement step failed because the job had already failed.
+
+### 8.4 Updated decision
+
+The instrumentation question is now sufficiently answered for the fixed failing case: the bin-sample diagnostic can remain enabled in this audit workflow because the A/B probe found no output differences in the nonempty physics outputs. Keep the empty RNG-audit limitation explicit.
+
+The next research action should **not** be to modify the diagnostic or the lower-cut bridge. It should be a controlled *input-scheme sensitivity experiment* with two separately named, provenance-recorded discrete-level inputs, first on a small deterministic seed/event set containing event 6:
+
+1. baseline input exactly as used in the CI run, hashed and archived;
+2. candidate input generated from an explicit, reviewable source-selection policy, with each added level and its source/uncertainty/Jπ recorded.
+
+Before running CGMF, compare the resulting per-nuclide discrete maxima and continuum mesh cutoffs. Then run both inputs with identical seeds and compare event identity, selected continuum ((E,J,\pi)), lower-cut incidence, bridge acceptance/rejection, and downstream histories. The candidate input must remain isolated from `data/discreteLevels.dat`; no production replacement or physics claim follows from a sensitivity result alone.
+
+The candidate experiment must not insert the 201-keV I-136 isomer as an endpoint for the 19-keV event: it is energetically inaccessible. The experiment is about the completeness/selection policy for the evaluated level scheme and the induced continuum boundary, not a preselected fix for event 6.
