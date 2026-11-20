@@ -21,7 +21,7 @@ The ENSDF adopted-level evaluation (February 2005; NDS 104, 497 (2005)) lists:
 - ground state: (0.0), (4^+), half-life 2.295 h;
 - a tentative (22?\,(11)) keV ((5^+)) level;
 - (120\,(20)) keV ((8^-)), half-life 1.387 h, XREF B (132I isomeric-transition decay);
-- the 120-keV isomer has 14(2)% beta decay and 86(2)% IT;
+- the 120-keV isomer has 14(2)% beta decay and 86(2)% IT; its XREF is B (isomeric-transition decay), not a direct 252Cf spontaneous-fission observation;
 - an approximately 98-keV E3 transition connects the (8^-) isomer to the tentative (22?)-keV ((5^+)) level.
 
 The RIPL-3 record in the repository contains the corresponding 120-keV, (8^-), approximately 4.99e3-s isomer and an IT branch to the lower (22)-keV level. The current prepared CGMF `discreteLevels.dat` contains only the I-132 ground state (ndisc=1), consistent with the RIPL header fields (Nol=6, Nog=6, Nmax=1, Nc=1). Under the CGMF DEVUTIL reader's `reassign` mode, Nmax is the selected count; this matches the one-level prepared/runtime scheme and the same Nmax truncation mechanism as I-136.
