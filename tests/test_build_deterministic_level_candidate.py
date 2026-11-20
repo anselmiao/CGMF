@@ -127,10 +127,42 @@ class DeterministicCandidateTests(unittest.TestCase):
             self.assertEqual(report1.read_bytes(), report2.read_bytes())
             candidate = json.loads(out1.read_text(encoding="utf-8"))
             report = json.loads(report1.read_text(encoding="utf-8"))
-            self.assertEqual(len(candidate["levels"]), 4)
-            self.assertEqual(report["counts"]["CATALOG_ONLY"], 4)
+            self.assertEqual(len(candidate["levels"]), 5)
+            self.assertEqual(report["counts"]["CATALOG_ONLY"], 5)
             self.assertEqual(report["accepted_prompt_level_ids"], [])
             self.assertFalse(report["production_data_modified"])
+
+    def test_complete_decay_channels_must_sum_to_one(self):
+        root = Path(__file__).resolve().parents[1]
+        manifest = json.loads((root / "research/manifests/targeted-level-candidates-v0.1.json").read_text(encoding="utf-8"))
+        isomer = next(x for x in manifest["levels"] if x["level_id"] == "132I-120keV-isomer")
+        isomer["decay_channels"][1]["fraction"] = 0.80
+        with self.assertRaisesRegex(ValueError, "fractions must sum to 1"):
+            validate_manifest(manifest)
+
+    def test_observed_transition_energy_closure_is_checked_when_uncertainties_exist(self):
+        root = Path(__file__).resolve().parents[1]
+        manifest = json.loads((root / "research/manifests/targeted-level-candidates-v0.1.json").read_text(encoding="utf-8"))
+        isomer = next(x for x in manifest["levels"] if x["level_id"] == "132I-120keV-isomer")
+        isomer["observed_transitions"][0]["gamma_energy_keV"] = 150.0
+        with self.assertRaisesRegex(ValueError, "energy closure failed"):
+            validate_manifest(manifest)
+
+    def test_required_internal_conversion_coefficient_cannot_be_missing(self):
+        root = Path(__file__).resolve().parents[1]
+        manifest = json.loads((root / "research/manifests/targeted-level-candidates-v0.1.json").read_text(encoding="utf-8"))
+        isomer = next(x for x in manifest["levels"] if x["level_id"] == "132I-120keV-isomer")
+        isomer["observed_transitions"][0]["total_internal_conversion_coefficient"] = None
+        with self.assertRaisesRegex(ValueError, "coefficient is missing"):
+            validate_manifest(manifest)
+
+    def test_relative_photon_intensity_is_not_treated_as_total_decay_probability(self):
+        root = Path(__file__).resolve().parents[1]
+        manifest = json.loads((root / "research/manifests/targeted-level-candidates-v0.1.json").read_text(encoding="utf-8"))
+        isomer = next(x for x in manifest["levels"] if x["level_id"] == "132I-120keV-isomer")
+        self.assertEqual(isomer["observed_transitions"][0]["relative_photon_intensity"], 100)
+        result = validate_manifest(manifest)
+        self.assertEqual(result["decision_report"]["accepted_prompt_level_ids"], [])
 
 
 if __name__ == "__main__":
