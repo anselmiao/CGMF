@@ -128,7 +128,7 @@ double specTc2d(Statcalcmode mode, int pg, int i, int p0, int j0, int l,
         std::cerr << std::setprecision(17)
                   << "[G2 NONFINITE DISCRETE TRANSITION INPUT] Z=" << n->za.getZ()
                   << " A=" << n->za.getA() << " mode=" << static_cast<int>(mode)
-                  << " k0=" << k0 << " level_index=" << i
+                  << " level_index=" << i
                   << " parent_spin2=" << j0 << " parent_parity=" << p0
                   << " multipolarity=" << l << " tg=" << tg << " q=" << q
                   << " level_energy=" << n->lev[i].energy
