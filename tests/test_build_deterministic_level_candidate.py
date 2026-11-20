@@ -90,7 +90,7 @@ class DeterministicCandidateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "lattice mismatch"):
             validate_manifest(doc)
 
-    def test_i132_ensdf_delayed_it_and_uncertain_29kev_line_are_not_prompt_branches(self):
+    def test_i132_ensdf_delayed_it_and_uncertain_22kev_line_are_not_prompt_branches(self):
         root = Path(__file__).resolve().parents[1]
         manifest = json.loads((root / "research/manifests/targeted-level-candidates-v0.1.json").read_text(encoding="utf-8"))
         isomer = next(x for x in manifest["levels"] if x["level_id"] == "132I-120keV-isomer")
@@ -103,7 +103,8 @@ class DeterministicCandidateTests(unittest.TestCase):
         self.assertEqual(transition["multipolarity"], "E3")
         self.assertEqual(transition["total_internal_conversion_coefficient"], 21.6)
         uncertain = intermediate["observed_transitions"][0]
-        self.assertEqual(uncertain["gamma_energy_keV"], 29.11)
+        self.assertEqual(uncertain["gamma_energy_keV"], 22)
+        self.assertEqual(uncertain["gamma_energy_uncertainty_keV"], 11)
         self.assertIsNone(uncertain["multipolarity"])
         self.assertIn("UNCERTAIN", uncertain["evidence_status"])
         result = validate_manifest(manifest)
