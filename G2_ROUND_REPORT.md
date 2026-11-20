@@ -1440,3 +1440,19 @@ Run 页面：https://github.com/anselmiao/CGMF/actions/runs/44614976464
 - Run #238 native regression 日志还出现 ¹⁰⁵Nb、⁹⁶Y、¹³⁷I、¹⁰⁵Zr、¹³⁸Te 等多个核素的相似不可映射失败；不是单一 ¹³⁶I 数据问题。不得改写 golden、跳过失败事件或用部分 histories 做 P/H/O 推断。
 
 本轮没有修改生产物理规则、数据库、golden 或事件矩阵；只增加诊断审计报告。
+
+
+
+## Run #124：低能连续态自旋宇称来源审计（SOURCE_VERIFIED / EVENT TRACE BLOCKED）
+
+独立审计：[low-energy continuum population audit](research/audits/cgmf-low-energy-continuum-population-audit-run124.md)。
+
+本轮追踪到一个比离散桥接更上游的机制：
+- `setup.cpp::statSetupEnergyBin` 在最高离散能级 `elmax == 0`（当前只有基态）时，将 `ncont` 设为 `ntotal-1`，即把连续态能量网格延伸至零激发能。
+- `setup.cpp::statSetupLevelDensity` 在这些网格上逐格填充模型能级密度、自旋分布和 50/50 宇称分布。
+- 仅有一个离散态时，`ldLevelSpinCutoff` 返回 0，之后采用核素质量系统学的 spin-cutoff。于是低能连续态并不被基态 (J^\pi) 限制。
+- `specmc.cpp::mcFindNext` 从累积的连续态 population bins 抽样，因此低能高自旋连续态可以进入 Monte Carlo history。此机制与 ¹³⁶I 79.303 keV、(7^+) 失败事件高度吻合，但其具体 event ancestry 尚未加诊断追踪，不能标成已逐事件验证。
+- `gampop.cpp::specTransitionGamma` 的生产 gamma population 同时包括 E1、M1、E2；而 `mcSelectE1DiscreteBridge` 仅允许 E1，二者范围不一致。不过对 (7^+\to1^-)，(Delta J=6)，即使把桥接扩为 E1/M1/E2 也无法解决。
+
+因此下一步不是直接放宽 E1，而是先测量低能 continuum population 是否在实验核能级结构不支持的区域产生伪连续态。必须加 per-event ancestry / per-bin multipole contribution diagnostics，再对所有失败核素与 ENSDF/RIPL 的第一激发态作比较。未获得物理依据前，不改变 lower-cut、level density、gamma strengths、离散数据库或 golden。
+
