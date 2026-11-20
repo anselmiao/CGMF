@@ -16,8 +16,9 @@ from audit_i136_discrete_baseline import (
 class I136BaselineAuditTests(unittest.TestCase):
     def test_ripl_fixed_width_fields_are_separated(self):
         header = "136I   136   53   11   19    1    1    3.780000    8.960000"
-        level = "  1   0.000000   1.0 -1   8.34E+01  0                      (1-)"
-        line, counts, levels = find_ripl_i136([header, level])
+        levels_input = [f"{i:3d}   {0.1 * (i - 1):0.6f}   1.0 -1   8.34E+01  0" for i in range(1, 12)]
+        levels_input[0] = levels_input[0].ljust(46) + "(1-)"
+        line, counts, levels = find_ripl_i136([header] + levels_input)
         self.assertEqual(line, 1)
         self.assertEqual(counts, {"Nol": 11, "Nog": 19, "Nmax": 1, "Nc": 1})
         self.assertEqual(len(levels), 1)
