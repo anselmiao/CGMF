@@ -66,7 +66,7 @@ For reference only, if independent source evidence later establishes that this i
 
 Those last parent-level values remain conditional calculations, not an admitted CGMF prompt yield. The 1.387-hour isomer remains `CATALOG_ONLY`; no prompt gamma branch is generated.
 
-## 4. Tests
+## 4. Primary-source check and interpretation\n\nThe 1974Di03 abstract says the isomeric transition is via the 98-keV gamma line with an 86% branch and the remainder via beta-minus decay. The ENSDF adopted record separately gives IT=86(2)% and beta=14(2)%. This 86% is therefore used as the total IT decay-mode fraction, not as (P_\gamma). The 98-keV transition's photon/conversion partition is governed separately by its ICC. The paper's abstract is directly available, but its full measurement tables were not retrievable here; this is why the inventory-completeness gate remains closed.\n\nNNDC NuDat's gamma-emission guide states (α=P_{IC}/P_\gamma) and defines (I_\gamma) normalization within transitions de-exciting the same level. It gives the partial-transition half-life relation (T_\gamma=T_{1/2}/[I_\gamma(1+α)]), independently supporting the total-transition weight factor (I_\gamma(1+α)).\n\nSources: [1974Di03 APS abstract](https://journals.aps.org/prc/abstract/10.1103/PhysRevC.10.1172); [ENSDF references for 1974Di03](https://www.nndc.bnl.gov/ensdf/getrefs.jsp?dsid=ADOPTED+LEVELS%2C+GAMMAS&recid=132053001); [NNDC NuDat gamma emission and internal conversion](https://www.nndc.bnl.gov/nudat3/guide/gammaemission.html).\n\n## 5. Tests
 
 Added regression coverage for:
 - incomplete ¹³²I transition inventory producing `BLOCKED`;
@@ -75,7 +75,7 @@ Added regression coverage for:
 
 The synthetic fixture is a mathematical/algorithmic test, not a nuclear-data claim.
 
-## 5. CI verification\n\nGitHub Actions [Nuclide data audit tests run #44804510270](https://github.com/anselmiao/CGMF/actions/runs/44804510270), on code/test commit `072945d92c040b87cf3643385947b637bb88ab9c`, completed successfully: 35 unit tests passed, including the synthetic two-transition probability-conservation test and the ¹³²I incomplete-inventory blocking test. The eight-nuclide audit and frozen I-136 baseline verification also passed. The subsequent audit-document commit does not change executable code.\n\nThe full `CGMF G2 Build` run [#44804581048](https://github.com/anselmiao/CGMF/actions/runs/44804581048) was still in progress when checked; its build and G2 matrix are not yet verified.\n\n## 6. Status ledger
+## 6. CI verification\n\nGitHub Actions [Nuclide data audit tests run #44804510270](https://github.com/anselmiao/CGMF/actions/runs/44804510270), on code/test commit `072945d92c040b87cf3643385947b637bb88ab9c`, completed successfully: 35 unit tests passed, including the synthetic two-transition probability-conservation test and the ¹³²I incomplete-inventory blocking test. The eight-nuclide audit and frozen I-136 baseline verification also passed. The subsequent audit-document commit does not change executable code.\n\nThe full `CGMF G2 Build` run [#44804581048](https://github.com/anselmiao/CGMF/actions/runs/44804581048) was still in progress when checked; its build and G2 matrix are not yet verified.\n\n## 7. Status ledger
 
 | Item | Status |
 |---|---|
@@ -87,6 +87,6 @@ The synthetic fixture is a mathematical/algorithmic test, not a nuclear-data cla
 | Prompt CGMF integration | `BLOCKED` |
 | Production `data/discreteLevels.dat` modification | `NO` |
 
-## 7. Next gate
+## 8. Next gate
 
 Find and inspect the underlying 1974Di03 IT-decay dataset and its complete transition/intensity table, including any unobserved or upper-limit branches and the normalization convention. Only then may the ¹³²I IT transition inventory be marked complete. In parallel, implement uncertainty propagation for (I_gamma) and (alpha) before using derived probabilities in quantitative A/B comparisons.
