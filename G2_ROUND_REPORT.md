@@ -1471,3 +1471,16 @@ Run 页面：https://github.com/anselmiao/CGMF/actions/runs/44614976464
 (7^-\to7^+) 满足 (Delta J=0) 且宇称改变；在当前 E1/M1/E2 生产通道中，E1 是允许通道。因此这条低能 (7^+) 连续态不是单纯由桥接阶段臆造，而是由当前连续态 population + E1 γ 跃迁 + bin 内能量扰动的组合生成。该状态位于 ENSDF 第一激发态 86.73 keV 以下，说明当前连续态模型确实把统计连续谱延伸到了该核素已评价能级结构不支持的能量区间。
 
 诊断代码只输出 event 1–10 的低能 population bins 与抽样前后状态，不改变 RNG、population、转移选择或历史记录。Run #253 仍在真实 sidecar matrix 阶段失败，完整矩阵和后续 P/H/O 分析仍未执行。下一步应量化不同核素的低能连续态人口及首个激发态阈值关系；在物理依据和跨核素检验完成前，不改变 continuum cutoff、level density、gamma strength 或 lower-cut。
+
+
+## Run #126：native regression 12 条桥接失败与 ENSDF 首激发态交叉分类
+
+详细矩阵已追加到 [low-energy continuum population audit](research/audits/cgmf-low-energy-continuum-population-audit-run124.md)。
+
+Run #253 的 `LastTest.log` 中 12 条 bridge diagnostics 覆盖 8 个核素，**每条均为 `ndisc=1`**。交叉 ENSDF 后，必须把统一条件拆成两类：
+- **低于第一激发态的伪连续区间**：¹³⁶I（86.73 keV）、¹³⁷I（243.3 keV）、¹³⁸Te（461.10 keV）、⁸⁹Br（130.3 keV）的失败能量均低于首个 ENSDF 激发态。
+- **已知离散态在事件能量范围内却未进入运行数据库**：¹³²I（22 keV 首个暂定/异能态，失败能量277 keV）和⁹⁶Y（122.297 keV 首激发态，失败能量186.7 keV）。这两种情况不能只靠调整 continuum lower threshold 处理，必须先核实并修复离散数据库覆盖。
+- ¹⁰⁵Zr、¹⁰⁵Nb 的 ENSDF adopted-level 数据集已确认存在，但首个激发态能量尚待提取，暂不分类。
+
+因此目前确认的是同一个软件条件 `ndisc=1`，但它导致至少两种不同的数据/模型问题。不能据此全局修改 continuum cutoff，也不能把 E1 桥接失败全部归因于一个核物理原因。下一步先完成 ¹⁰⁵Zr/¹⁰⁵Nb 的 ENSDF 首能级提取，再回到实际 `discreteLevels.dat` 逐核素对照来源、筛选和能级完整性。
+
