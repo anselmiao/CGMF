@@ -72,6 +72,15 @@ jobs:
       - name: Run deterministic targeted discrete-level candidate tests
         run: python3 -m unittest discover -s tests -p 'test_build_deterministic_level_candidate.py' -v
 
+      - name: Run lower-cut discrete-state reachability tests and I-136 event-6 audit
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools/tests -p 'testLowerCutReachability.py' -v
+          python3 tools/analysis/lowerCutReachability.py \\
+            --input tools/tests/fixtures/i136-event6-lower-cut.json \\
+            --output build/i136-event6-lower-cut-reachability.json
+          cat build/i136-event6-lower-cut-reachability.json
+
       - name: Validate non-overlapping RNG seed ranges in matrix
         run: python3 tools/tests/validateG2SeedMatrix.py tools/tests/g2SidecarMatrix.json
 
