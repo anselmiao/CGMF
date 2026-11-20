@@ -1765,3 +1765,17 @@ CI：
 - 新增 odd/even-A 自旋量子化检查；Python audit tests 已通过 Run #3。
 - Nuclide audit workflow 增加对当前仓库八个失败核素的真实数据审计，预期明确报告 ⁸⁹Br、¹⁰⁵Zr 两个 anomaly。
 - 生产初始化 fail-closed gate 尚未实现；待来源审计和数据修正方案确认后再决定。
+
+
+### Run #284 / Nuclide audit CI 的实际数据复核结果
+
+Nuclide audit workflow #4 已成功：
+https://github.com/anselmiao/CGMF/actions/runs/44732511956
+
+该 workflow 不只运行 3 个单元测试，还直接解析仓库当前 `data/ripl3-levels.dat` 与 `data/discreteLevels.dat` 的八个失败核素，实际 CSV 显示：
+- 八个核素的 `ndisc=1) 全部等于 `min(Nmax,Nc)=1)；
+- 只有 ⁸⁹Br 和 ¹⁰⁵Zr 的 CGMF 基态 J 违反 A 奇偶性对应的整数/半整数规则；
+- RIPL-3 原始记录中 ⁸⁹Br 的原始 spin 字符串已经是 `(3/2-,5/2-)`，数值 J=-1、parity=0；RIPL-4 继续保留该候选字符串。故 ZIP 的 3/2− public reference 和 5/2− correction 都不能仅凭该候选字符串升级为唯一值。
+- ¹⁰⁵Zr 在 RIPL-3 数值 Jπ 未知；RIPL-4 才提供 `1/2+#` 候选。
+
+实际数据审计 workflow 结果：**PASS**；这验证的是审计工具和当前数据 anomaly 检查，不代表 CGMF G2 build 或物理 cascade 已通过。
