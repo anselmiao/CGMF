@@ -186,7 +186,9 @@ class DeterministicCandidateTests(unittest.TestCase):
             "mode": "IT", "fraction": 0.86,
             "fraction_basis": "total_isomer_decay", "source_id": "ensdf"
         }]
-        isomer["transition_sets"] = [{"mode": "IT", "complete": True}]
+        isomer["transition_sets"] = [{"mode": "IT", "complete": True,
+                                      "intensity_basis": "relative_photon_intensity_within_decay_mode",
+                                      "source_id": "ensdf"}]
         isomer["observed_transitions"] = [
             {"transition_id": "t1", "decay_mode_id": "IT", "initial_level_id": "136I-m1",
              "final_level_id": "136I-exc", "gamma_energy_keV": 151.0,
