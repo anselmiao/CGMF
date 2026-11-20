@@ -45,15 +45,17 @@ Combining these with the adopted 86% IT branch gives approximate total-isomer de
 
 These derived percentages are conditional arithmetic using the adopted central values; uncertainties and any unlisted weak channels are not propagated here.
 
-## 4. The 22-keV level to ground-state transition: important correction
+## 4. The 22-keV level to ground-state entry: uncertainty retained
 
-The adopted gamma table does **not** establish a 22-keV gamma transition. It lists a parenthesized (E_\gamma=(29.11)) keV entry from the (22?)-keV ((5^+)) level to the ground state, without a multipolarity assignment. The level-scheme graphic marks this decay with a dashed arrow and explicitly defines dashed arrows as uncertain gamma decay.
+The adopted gamma table's row for the tentative 22? (5+) level prints a parenthesized (Eγ=(22 11)) keV entry to the 4+ ground state. It does **not** provide a relative photon intensity or multipolarity for this entry. The level-scheme graphic marks the decay with a dashed arrow, and its legend identifies dashed arrows as uncertain gamma decay.
 
-Therefore:
-- do not encode a confirmed 22-keV gamma line;
-- do not assign M1 or any other multipolarity by inference alone;
-- preserve the tabulated 29.11-keV value as a source record, with its assignment/placement uncertainty;
-- do not create a validated gamma branch from this level until the original dataset and supporting experimental evidence establish the transition.
+The correct transcription is therefore:
+- retain Eγ=(22 11) keV as an uncertain adopted-table observation;
+- do not transcribe 29.11 keV (that value is not present in this adopted table row);
+- do not assign a multipolarity or a relative photon intensity;
+- do not convert this uncertain entry into an admitted CGMF prompt gamma branch.
+
+This correction changes the source record's energy/uncertainty fields, but not the admission decision: the 22-keV level remains catalog-only and the putative ground-state branch remains uncertain.
 
 ## 5. Prompt versus delayed classification
 
@@ -72,7 +74,7 @@ The current generic field `gamma_branches[].probability` is semantically insuffi
 6. multipolarity/mixing-ratio evidence and assignment confidence;
 7. prompt/delayed classification and source dataset identity.
 
-The candidate manifest now stores the ¹³²I decay-mode fractions and the 98-keV E3 photon/ICC record separately. The 29.11-keV ground-state entry is retained as an uncertain observed-transition record, not as an accepted gamma branch.
+The candidate manifest now stores the ¹³²I decay-mode fractions and the 98-keV E3 photon/ICC record separately. The parenthesized (22 11)-keV ground-state entry is retained as an uncertain observed-transition record, not as an accepted gamma branch.
 
 ## 7. Status ledger
 
