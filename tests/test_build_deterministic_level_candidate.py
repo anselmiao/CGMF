@@ -164,6 +164,56 @@ class DeterministicCandidateTests(unittest.TestCase):
         result = validate_manifest(manifest)
         self.assertEqual(result["decision_report"]["accepted_prompt_level_ids"], [])
 
+    def test_i132_conditional_it_branch_is_blocked_without_complete_inventory(self):
+        root = Path(__file__).resolve().parents[1]
+        manifest = json.loads((root / "research/manifests/targeted-level-candidates-v0.1.json").read_text(encoding="utf-8"))
+        result = validate_manifest(manifest)
+        row = next(x for x in result["decision_report"]["decisions"] if x["level_id"] == "132I-120keV-isomer")
+        derived = row["derived_decay_modes"]["ISOMERIC_TRANSITION"]
+        self.assertEqual(derived["status"], "BLOCKED")
+        self.assertIn("not certified complete", derived["reason"])
+
+    def test_conditional_transition_and_icc_probabilities_are_derived_separately(self):
+        doc = base_doc()
+        doc["levels"].append({
+            "level_id": "136I-exc", "zaid": 53136, "Z": 53, "A": 136,
+            "energy_MeV": 0.05, "energy_uncertainty_MeV": 0.0,
+            "spin": "2", "parity": -1, "jpi_status": "ADOPTED_UNIQUE",
+            "source_id": "ensdf", "decision": "CATALOG_ONLY"
+        })
+        isomer = doc["levels"][1]
+        isomer["decay_channels"] = [{
+            "mode": "IT", "fraction": 0.86,
+            "fraction_basis": "total_isomer_decay", "source_id": "ensdf"
+        }]
+        isomer["transition_sets"] = [{"mode": "IT", "complete": True}]
+        isomer["observed_transitions"] = [
+            {"transition_id": "t1", "decay_mode_id": "IT", "initial_level_id": "136I-m1",
+             "final_level_id": "136I-exc", "gamma_energy_keV": 151.0,
+             "relative_photon_intensity": 100, "total_internal_conversion_coefficient": 1.0,
+             "source_id": "ensdf"},
+            {"transition_id": "t2", "decay_mode_id": "IT", "initial_level_id": "136I-m1",
+             "final_level_id": "136I-gs", "gamma_energy_keV": 201.0,
+             "relative_photon_intensity": 50, "total_internal_conversion_coefficient": 0.0,
+             "source_id": "ensdf"}
+        ]
+        result = validate_manifest(doc)
+        row = next(x for x in result["decision_report"]["decisions"] if x["level_id"] == "136I-m1")
+        derived = row["derived_decay_modes"]["IT"]
+        self.assertEqual(derived["status"], "DERIVED_CONDITIONAL")
+        first, second = derived["transitions"]
+        self.assertAlmostEqual(first["transition_probability_given_mode"], 0.8)
+        self.assertAlmostEqual(first["gamma_probability_given_transition"], 0.5)
+        self.assertAlmostEqual(first["conversion_probability_given_transition"], 0.5)
+        self.assertAlmostEqual(first["total_isomer_decay_gamma_probability"], 0.86 * 0.8 * 0.5)
+        self.assertAlmostEqual(first["total_isomer_decay_conversion_probability"], 0.86 * 0.8 * 0.5)
+        self.assertAlmostEqual(second["transition_probability_given_mode"], 0.2)
+        self.assertAlmostEqual(second["total_isomer_decay_gamma_probability"], 0.86 * 0.2)
+        self.assertAlmostEqual(
+            sum(x["total_isomer_decay_gamma_probability"] + x["total_isomer_decay_conversion_probability"] for x in derived["transitions"]),
+            0.86
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
