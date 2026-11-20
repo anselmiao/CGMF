@@ -42,7 +42,7 @@
       "half_life_s": null,
       "source_id": "ENSDF-I132",
       "decision": "CATALOG_ONLY",
-      "decision_reason": "ENSDF adopted level is 22(11) keV with tentative (5+) assignment. The adopted gamma table lists a 29.11-keV transition to the 4+ ground state without multipolarity; level-scheme arrow is explicitly uncertain. Do not treat as an established 22-keV prompt gamma branch.",
+      "decision_reason": "ENSDF adopted level is 22(11) keV with tentative (5+) assignment. The adopted gamma table contains a parenthesized Eγ=(22 11) keV entry to the 4+ ground state, but no Iγ or multipolarity; the level-scheme arrow is explicitly uncertain. Retain only as an uncertain source observation, not as an admitted prompt gamma branch.",
       "competing_decay": "UNKNOWN",
       "gamma_branches": [],
       "observed_transitions": [
@@ -50,12 +50,12 @@
           "transition_id": "132I-22-to-gs",
           "initial_level_id": "132I-22keV-tentative",
           "final_level_id": "132I-gs",
-          "gamma_energy_keV": 29.11,
-          "gamma_energy_uncertainty_keV": null,
+          "gamma_energy_keV": 22,
+          "gamma_energy_uncertainty_keV": 11,
           "multipolarity": null,
-          "evidence_status": "ADOPTED_TABLE_UNASSIGNED_MULTIPOLARITY_LEVEL_SCHEME_UNCERTAIN",
+          "evidence_status": "ADOPTED_TABLE_PARENTHESES_NO_INTENSITY_NO_MULTIPOLARITY_LEVEL_SCHEME_UNCERTAIN",
           "source_id": "ENSDF-I132",
-          "note": "ENSDF gamma table gives Eγ=(29.11) with no multipolarity; the 22-keV level energy is 22(11) keV. The level-scheme depiction is uncertain.",
+          "note": "ENSDF adopted gamma table prints Eγ=(22 11) keV from the tentative 22? (5+) level to the 4+ ground state. No relative photon intensity or multipolarity is assigned; the level-scheme arrow is explicitly uncertain. This is not a validated branch.",
           "prompt_status": "UNCERTAIN_NOT_ADMITTED",
           "energy_closure_status": "NOT_CHECKABLE_GAMMA_UNCERTAINTY_MISSING"
         }
