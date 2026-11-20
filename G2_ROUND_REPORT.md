@@ -1416,3 +1416,12 @@ Run 页面：https://github.com/anselmiao/CGMF/actions/runs/44614976464
 下一轮先对 CSV 中 85 条已匹配记录做规则分组，按 RIPL 原始标记（明确 Jπ、范围、多个候选、未指派）统计转换后的变化；对 29 条未匹配项另做能量容差与核素头解析复核。之后才决定哪些记录需要 ENSDF 逐条复核。当前不修复、不覆盖专用数据，也不改 E1 选择器。
 
 本轮只新增只读审计 CSV 与报告，没有修改物理代码、数据库、golden 或模拟矩阵。
+
+
+## Run #122：RIPL 自旋异常分类与 ¹³⁶I 运行时审计扩展
+
+本轮只读分类结果及证据边界见 [独立审计记录](research/audits/cgmf-spin-quantization-classification-run122.md)。
+
+同时将运行时数据审计目标从 ZAID 35089、53132 扩展为增加 53136（¹³⁶I），用于在下一次 CI 运行时直接打印该核素的离散能级数及每条能级的能量、J、宇称。该改动仅增加诊断输出，不修改核数据、物理选择规则、级联逻辑或 golden。
+
+当前基线 Run #236 已确认：Build、原生 CTest 和前置合成测试通过；G2 sidecar matrix 在 Cf-252 自发裂变 case 的 event 6 因 ¹³⁶I lower-cut 离散态无法映射而中止。原始失败 artifact 只含 event 1–5，不能作为完整矩阵数据。
