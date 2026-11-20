@@ -152,12 +152,12 @@ def audit(ripl: dict[str, RiplRecord], cgmf: dict[str, CgmfRecord], selected: se
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--ripl", required=True, type=Path, help="RIPL-3 levels.dat")
+    parser.add_argument("--ripl", required=True, nargs="+", type=Path, help="One or more RIPL element level files (RIPL-3 combined file or RIPL-4 zNNN.dat files)")
     parser.add_argument("--cgmf", required=True, type=Path, help="CGMF discreteLevels.dat")
     parser.add_argument("--nuclides", nargs="*", help="Optional isotope symbols, e.g. 136I 105Zr")
     parser.add_argument("--output", type=Path, help="CSV output (stdout if omitted)")
     args = parser.parse_args()
-    rows = audit(parse_ripl(args.ripl), parse_cgmf(args.cgmf), set(args.nuclides) if args.nuclides else None)
+    ripl_records: dict[str, RiplRecord] = {}\n    for ripl_path in args.ripl:\n        for symbol, record in parse_ripl(ripl_path).items():\n            if symbol in ripl_records:\n                raise ValueError(f"Duplicate RIPL isotope record across inputs: {symbol}")\n            ripl_records[symbol] = record\n    rows = audit(ripl_records, parse_cgmf(args.cgmf), set(args.nuclides) if args.nuclides else None)
     if not rows:
         print("No records selected.", file=sys.stderr)
         return 2
