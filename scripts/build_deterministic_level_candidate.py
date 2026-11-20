@@ -13,7 +13,7 @@ import math
 from fractions import Fraction
 from pathlib import Path
 
-SCHEMA_VERSION = "cgmf-targeted-level-candidate-v0.1"
+SCHEMA_VERSION = "cgmf-targeted-level-candidate-v0.2"
 VALID_JPI = {"ADOPTED_UNIQUE", "TENTATIVE", "AMBIGUOUS", "UNKNOWN"}
 VALID_DECISIONS = {"PROMPT_INCLUDE", "CATALOG_ONLY", "REJECT", "BLOCKED"}
 
@@ -151,6 +151,59 @@ def validate_manifest(doc: dict) -> dict:
                 total += probability
             if branches and not math.isclose(total, 1.0, rel_tol=0.0, abs_tol=1e-8):
                 raise ValueError(f'{rec["level_id"]}: gamma branch probabilities sum to {total}, not 1')
+            channels = rec.get("decay_channels", [])
+            if not isinstance(channels, list):
+                raise ValueError(f'{rec["level_id"]}: decay_channels must be an array')
+            channel_ids = set()
+            channel_total = 0.0
+            for channel in channels:
+                mode = channel.get("mode")
+                if not mode or mode in channel_ids:
+                    raise ValueError(f'{rec["level_id"]}: decay channel modes must be unique')
+                channel_ids.add(mode)
+                if channel.get("fraction_basis") != "total_isomer_decay":
+                    raise ValueError(f'{rec["level_id"]}: fraction_basis must be total_isomer_decay')
+                channel_total += _finite_nonnegative(channel.get("fraction"), f'{rec["level_id"]}.{mode}.fraction')
+                if channel.get("source_id") not in source_ids:
+                    raise ValueError(f'{rec["level_id"]}: decay channel has unknown source_id')
+            if rec.get("decay_channels_complete", False):
+                if not channels or not math.isclose(channel_total, 1.0, rel_tol=0.0, abs_tol=1e-6):
+                    raise ValueError(f'{rec["level_id"]}: complete decay-channel fractions must sum to 1')
+            elif channels and channel_total > 1.0 + 1e-6:
+                raise ValueError(f'{rec["level_id"]}: partial decay-channel fractions exceed 1')
+
+            transitions = rec.get("observed_transitions", [])
+            if not isinstance(transitions, list):
+                raise ValueError(f'{rec["level_id"]}: observed_transitions must be an array')
+            for tr in transitions:
+                if tr.get("initial_level_id") != rec["level_id"]:
+                    raise ValueError(f'{rec["level_id"]}: transition initial_level_id mismatch')
+                target_id = tr.get("final_level_id")
+                target_rec = next((x for x in records if x["level_id"] == target_id), None)
+                if target_rec is None or target_rec["energy_MeV"] >= rec["energy_MeV"]:
+                    raise ValueError(f'{rec["level_id"]}: observed transition destination must be a lower catalogued level')
+                gamma_keV = _finite_nonnegative(tr.get("gamma_energy_keV"), f'{rec["level_id"]}.gamma_energy_keV')
+                alpha_value = tr.get("total_internal_conversion_coefficient")
+                if alpha_value is not None:
+                    _finite_nonnegative(alpha_value, f'{rec["level_id"]}.total_internal_conversion_coefficient')
+                elif tr.get("conversion_coefficient_required", False):
+                    raise ValueError(f'{rec["level_id"]}: required internal-conversion coefficient is missing')
+                if tr.get("relative_photon_intensity") is not None:
+                    _finite_nonnegative(tr["relative_photon_intensity"], f'{rec["level_id"]}.relative_photon_intensity')
+                if tr.get("prompt_status") == "PROMPT":
+                    if rec.get("half_life_s") is None or rec["half_life_s"] > 1e-6:
+                        raise ValueError(f'{rec["level_id"]}: long-lived or unspecified level cannot be marked prompt')
+                    if any(c["mode"] in {"BETA_MINUS", "ISOMERIC_TRANSITION"} for c in channels):
+                        raise ValueError(f'{rec["level_id"]}: beta/IT competition cannot be promoted as prompt')
+                initial_u = rec.get("energy_uncertainty_MeV")
+                final_u = target_rec.get("energy_uncertainty_MeV")
+                gamma_u = tr.get("gamma_energy_uncertainty_keV")
+                if initial_u is not None and final_u is not None and gamma_u is not None:
+                    delta_keV = (rec["energy_MeV"] - target_rec["energy_MeV"]) * 1000.0
+                    sigma_keV = math.sqrt((initial_u * 1000.0) ** 2 + (final_u * 1000.0) ** 2 + float(gamma_u) ** 2)
+                    residual = abs(delta_keV - gamma_keV)
+                    if residual > max(1e-6, 3.0 * sigma_keV):
+                        raise ValueError(f'{rec["level_id"]}: transition energy closure failed ({residual:.6g} keV > 3 sigma)')
             status = rec["decision"]
             if status == "PROMPT_INCLUDE":
                 accepted.append(rec["level_id"])
