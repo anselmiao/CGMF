@@ -497,6 +497,41 @@ static int mcSelectE1DiscreteBridge(int nucleus, double initialEnergy,
               << " rejected_angular_momentum=" << spinRejected
               << " rejected_parity=" << parityRejected
               << " accepted=0" << std::endl;
+
+    // Emit the actual runtime candidates on a failed bridge. The aggregate
+    // rejection counters above do not identify which level properties caused
+    // the failure; this read-only detail is restricted to the failure path.
+    for (int k = 0; k < target.ndisc; ++k) {
+      const Level &candidate = target.lev[k];
+      const bool valid =
+          std::isfinite(initialEnergy) && std::isfinite(initialSpin) &&
+          std::isfinite(candidate.energy) && std::isfinite(candidate.spin) &&
+          (initialParity == 1 || initialParity == -1) &&
+          (candidate.parity == 1 || candidate.parity == -1) &&
+          initialEnergy >= 0.0 && candidate.energy >= 0.0 &&
+          initialSpin >= 0.0 && candidate.spin >= 0.0;
+      const bool energyAllowed = valid && candidate.energy < initialEnergy;
+      const double deltaSpin = std::fabs(initialSpin - candidate.spin);
+      const bool angularMomentumAllowed =
+          valid && deltaSpin <= 1.0 && 1.0 <= initialSpin + candidate.spin;
+      const bool parityAllowed =
+          valid && initialParity * candidate.parity == -1;
+      std::cerr << std::setprecision(17)
+                << "[MC bridge candidate] site=" << site
+                << " event_id=" << g2SidecarEventId
+                << " fragment_side=" << g2SidecarFragmentSide
+                << " nucleus_index=" << nucleus
+                << " Z=" << Z << " A=" << A
+                << " level_index=" << k
+                << " energy_MeV=" << candidate.energy
+                << " spin=" << candidate.spin
+                << " parity=" << candidate.parity
+                << " valid=" << valid
+                << " energy_allowed=" << energyAllowed
+                << " angular_momentum_allowed=" << angularMomentumAllowed
+                << " parity_allowed=" << parityAllowed
+                << std::endl;
+    }
   }
   return selected;
 }
