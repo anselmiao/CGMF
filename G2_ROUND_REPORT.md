@@ -1456,3 +1456,18 @@ Run 页面：https://github.com/anselmiao/CGMF/actions/runs/44614976464
 
 因此下一步不是直接放宽 E1，而是先测量低能 continuum population 是否在实验核能级结构不支持的区域产生伪连续态。必须加 per-event ancestry / per-bin multipole contribution diagnostics，再对所有失败核素与 ENSDF/RIPL 的第一激发态作比较。未获得物理依据前，不改变 lower-cut、level density、gamma strengths、离散数据库或 golden。
 
+
+
+
+## Run #125：¹³⁶I event 6 低能连续态 ancestry 已由运行时诊断确认（COMPUTATION_VERIFIED）
+
+独立审计更新：[low-energy continuum population audit](research/audits/cgmf-low-energy-continuum-population-audit-run124.md)。
+
+在 Run #253（PR，SHA `05876bf91975a86ebcec28081bbd28fc10c99b6e`）artifact 的 `sidecar-on.stdout` 中，新增诊断记录了 ¹³⁶I、HF、event 6 的完整关键片段：
+1. (E=0.208422) MeV、(J^\pi=7^-) 的连续态，抽样到中心能量 (0.058422) MeV、(7^+) 的连续态；
+2. 经过代码中的 bin 内能量扰动，下一轮日志中的当前态为 (E=0.079303) MeV、(7^+)；
+3. 下一低能 bin 中心为 (0.029303) MeV，触发 lower-cut 后，桥接仍尝试从当前 (0.079303) MeV、(7^+) 态连接到唯一离散基态 (1^-)，因 E1 的 (Delta J=6) 被拒绝。
+
+(7^-\to7^+) 满足 (Delta J=0) 且宇称改变；在当前 E1/M1/E2 生产通道中，E1 是允许通道。因此这条低能 (7^+) 连续态不是单纯由桥接阶段臆造，而是由当前连续态 population + E1 γ 跃迁 + bin 内能量扰动的组合生成。该状态位于 ENSDF 第一激发态 86.73 keV 以下，说明当前连续态模型确实把统计连续谱延伸到了该核素已评价能级结构不支持的能量区间。
+
+诊断代码只输出 event 1–10 的低能 population bins 与抽样前后状态，不改变 RNG、population、转移选择或历史记录。Run #253 仍在真实 sidecar matrix 阶段失败，完整矩阵和后续 P/H/O 分析仍未执行。下一步应量化不同核素的低能连续态人口及首个激发态阈值关系；在物理依据和跨核素检验完成前，不改变 continuum cutoff、level density、gamma strength 或 lower-cut。
