@@ -144,7 +144,7 @@ class DeterministicCandidateTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[1]
         manifest = json.loads((root / "research/manifests/targeted-level-candidates-v0.1.json").read_text(encoding="utf-8"))
         isomer = next(x for x in manifest["levels"] if x["level_id"] == "132I-120keV-isomer")
-        isomer["observed_transitions"][0]["gamma_energy_keV"] = 150.0
+        isomer["observed_transitions"][0]["gamma_energy_keV"] = 300.0
         with self.assertRaisesRegex(ValueError, "energy closure failed"):
             validate_manifest(manifest)
 
