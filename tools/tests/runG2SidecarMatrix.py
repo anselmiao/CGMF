@@ -168,6 +168,9 @@ def main():
         on_env["CGMF_G2_SIDECAR"] = str((on_dir / "neutron-transition.jsonl").resolve())
         on_env["CGMF_G2_MIXED_HISTORY_SIDECAR"] = str((on_dir / "mixed-history.jsonl").resolve())
         on_env["CGMF_G2_RUN_ID"] = run_id
+        # Opt-in source diagnostic for low-energy continuum states; the C++
+        # logger limits output to the first ten events in each sidecar run.
+        on_env["CGMF_G2_POPULATION_DIAGNOSTIC"] = "1"
         on_env["CGMF_RNG_AUDIT"] = "1"
         on_env["CGMF_RNG_AUDIT_FILE"] = str((on_dir / "rng-audit.tsv").resolve())
         on_env["CGMF_DATA_AUDIT"] = "1"
