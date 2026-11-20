@@ -1,0 +1,33 @@
+name: Nuclide data audit tests
+
+on:
+  push:
+    branches:
+      - qi/fix-discrete-start-index
+    paths:
+      - "scripts/audit_nuclide_level_coverage.py"
+      - "tests/test_audit_nuclide_level_coverage.py"
+      - ".github/workflows/nuclide-audit.yml"
+  pull_request:
+    branches:
+      - qi/fix-discrete-start-index
+    paths:
+      - "scripts/audit_nuclide_level_coverage.py"
+      - "tests/test_audit_nuclide_level_coverage.py"
+      - ".github/workflows/nuclide-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  python-audit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile audit tool
+        run: python -m py_compile scripts/audit_nuclide_level_coverage.py
+      - name: Run audit unit tests
+        run: python -m unittest discover -s tests -p "test_audit_nuclide_level_coverage.py" -v
