@@ -1642,3 +1642,31 @@ G2 是核裂变统计模型与事件历史数据接口。即使获得稳定的�
 - 气论 G2 机制映射：**CANDIDATE**。
 
 本轮没有改变任何物理模型或数据判据。
+
+
+## Run #131：Run #277 E1 离散桥接失败根因审计
+
+独立审计：[Run #277 failure root-cause audit](research/audits/cgmf-run277-failure-root-cause-audit-run131.md)。
+
+本轮下载并检查 Run #277 的 job logs、CTest logs、G2 matrix artifact 和 native regression outputs。CI 去重配置的并发行为已得到运行验证：Run #276 被 Run #277 取代并取消；Run #277 作为最新 PR SHA 的有效运行完成。
+
+### 已核实结果
+
+- Configure、Build、G2 synthetic fixtures、RNG seed matrix tests 与 31-case seed overlap validator 通过。
+- Native CTest 为 99 项中 75 项通过；12 项 `*_exec` 失败，另 12 项依赖失败 exec 的 `*_diff` 未运行。CTest 退出码 8。由于 native step 设置 `continue-on-error: true`，workflow step 摘要显示 success 不代表 CTest 通过；最终 native regression enforcement 正确失败。
+- 12 条 native bridge diagnostics 均为 `ndisc=1`、`rejected_invalid=0`、`rejected_energy=0`、`accepted=0`；11 条因角动量条件拒绝，1 条（⁸⁹Br）因宇称条件拒绝。
+- 源码 `libcgmf/src/specmc.cpp` 显示 `mcFindNext()` fallback 与 `mcHistoryLoop()` lower-cut 两条路径均调用 `mcSelectE1DiscreteBridge()`。当前 selector 只实现 E1 条件：能量可达、`|J_i-J_f|≤1`（排除 0→0）且宇称翻转。无候选即标记 unmappable。
+- G2 matrix 在第一个 case `cf252-sf/on` 的 event 6、HF、ⁱ³⁶I、79.303 keV、(7⁺) lower-cut bridge 处终止。artifact 只有 event 1–5 的 10 条 mixed-history、21 条 neutron-transition 记录；RNG audit 为空。它不是完整 200-event case，更不是 31-case matrix。
+
+### 归因边界
+
+直接失败机制已 **COMPUTATION_VERIFIED + SOURCE_AUDITED**：E1-only selector 没有可接受的离散候选。更上游原因仍 **BLOCKED**：为何生产 runtime 对这些核素只加载一个离散态、E1-only bridge 是否符合历史设计意图、是否存在经验证的 M1/E2 强度与概率来源。不得仅为让 CI 通过而放宽选择规则或增加多极性参数。
+
+### 下一轮任务
+
+1. 追溯上游 CGMF 对 E1-only fallback/lower-cut bridge 的历史设计来源，确认其物理意图。
+2. 对 ¹³⁶I、¹³⁷I、¹⁰⁵Zr、⁸⁹Br、¹⁰⁵Nb、⁹⁶Y、¹³⁸Te、¹³²I 做 RIPL 原始数据—转换中间态—`discreteLevels.dat`—运行时对象的逐级审计。
+3. 固定失败 event/case/seed，分别复核 `mc_find_next` 与 `lower_cut` 两条路径。设计审计和数据链未完成前不提交物理规则修复。
+4. 完整 matrix 未生成前，P/H/O、conditional-history 和高阶统计继续 BLOCKED；气论映射维持 CANDIDATE。
+
+本轮未修改生产代码、核数据、随机种子、选择规则、matrix 或 golden。
