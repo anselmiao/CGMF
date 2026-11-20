@@ -75,18 +75,18 @@ Added regression coverage for:
 
 The synthetic fixture is a mathematical/algorithmic test, not a nuclear-data claim.
 
-## 5. Status ledger
+## 5. CI verification\n\nGitHub Actions [Nuclide data audit tests run #44804510270](https://github.com/anselmiao/CGMF/actions/runs/44804510270), on code/test commit `072945d92c040b87cf3643385947b637bb88ab9c`, completed successfully: 35 unit tests passed, including the synthetic two-transition probability-conservation test and the ¹³²I incomplete-inventory blocking test. The eight-nuclide audit and frozen I-136 baseline verification also passed. The subsequent audit-document commit does not change executable code.\n\nThe full `CGMF G2 Build` run [#44804581048](https://github.com/anselmiao/CGMF/actions/runs/44804581048) was still in progress when checked; its build and G2 matrix are not yet verified.\n\n## 6. Status ledger
 
 | Item | Status |
 |---|---|
 | Conditional branch formula implementation | `IMPLEMENTED` |
 | Fail-closed completeness/source-basis gates | `IMPLEMENTED` |
 | ¹³²I conditional IT probability | `BLOCKED` pending completeness evidence |
-| Synthetic probability normalization | `IMPLEMENTED_NOT_YET_CI_VERIFIED` |
+| Synthetic probability normalization | `COMPUTATION_VERIFIED` |
 | Uncertainty propagation | `NOT_IMPLEMENTED` |
 | Prompt CGMF integration | `BLOCKED` |
 | Production `data/discreteLevels.dat` modification | `NO` |
 
-## 6. Next gate
+## 7. Next gate
 
 Find and inspect the underlying 1974Di03 IT-decay dataset and its complete transition/intensity table, including any unobserved or upper-limit branches and the normalization convention. Only then may the ¹³²I IT transition inventory be marked complete. In parallel, implement uncertainty propagation for (I_gamma) and (alpha) before using derived probabilities in quantitative A/B comparisons.
