@@ -1701,3 +1701,43 @@ G2 是核裂变统计模型与事件历史数据接口。即使获得稳定的�
 ### 执行边界
 
 本轮只提交审计文档，不修改生产 C++、核数据、随机种子、golden 或物理选择规则。14 个其他 Jπ 候选、527 个截断核素、全库准入汇总继续为 REPORTED_UNVERIFIED。Patch A/B/C 尚未合并；P/H/O 和气论映射不升级。
+
+
+## Run #283：升级到 IAEA RIPL-4 并核验奇质量数自旋
+
+独立报告：[run283-ripl4-eight-nuclide-review.md](research/audits/run283-ripl4-eight-nuclide-review.md)。
+
+本轮使用 IAEA RIPL-4 官方仓库。RIPL-4 于 2026-05 发布，LEVELS 数据基于 2025-10 ENSDF 并补充 NUBASE 2020。CGMF 当前 `data/discreteLevels.dat` 仍标注为 RIPL-3 生成。
+
+### 关键结果
+
+- 八个失败核素的 RIPL-4 `Nol/Nog/Nmax/Nc` 已与当前 CGMF `ndisc` 对照。八例 `ndisc=1` 全部等于 `min(Nmax,Nc)=1`。这与“仅保留完整且唯一 Jπ 的保守边界”一致，但没有证明历史转换器一定按该公式实现。
+- RIPL-4 将 ¹³⁶I 的 `Nmax` 提高到 10，¹⁰⁵Nb 和 ¹³⁸Te 提高到 16；但它们的 `Nc` 仍为 1，因此唯一 Jπ 边界仍只有基态。
+- ¹⁰⁵Zr：RIPL-4 ground numeric Jπ 为 1/2+，原始 spin 字符串为 `1/2+#`；当前 CGMF 为 4+。A=105 为奇数，当前整数 J=4 违反半整数自旋量子化。
+- ⁸⁹Br：RIPL-4 ground numeric Jπ 仍未知，原始字符串为 `(3/2-,5/2-)`；当前 CGMF 为 2+。A=89 为奇数，当前整数 J=2 违反半整数自旋量子化。5/2− 只是候选之一，不能静默定为唯一值。
+- 对 Run #277 的十条失败 event-state，按当前 E1 规则和 RIPL-4 保守唯一完整边界筛查，候选数全部为 0。更新 RIPL-4 不能单独解除当前 E1-only bridge 失败。
+
+### 新增文件
+
+- `research/audits/run283-ripl4-eight-nuclide-review.md`
+- `research/audits/run283-ripl4-eight-nuclide-comparison.csv`
+- `research/audits/run283-ripl4-e1-bridge-screen.csv`
+- `scripts/audit_nuclide_level_coverage.py`：支持 RIPL-3 combined file / RIPL-4 多个 element files，输出 `Nol/Nog/Nmax/Nc`、来源 spin 字符串和奇偶质量数自旋量子化检查。
+- `tests/test_audit_nuclide_level_coverage.py`：覆盖 odd-A integer-J 异常及 Nmax/Nc 双边界。
+- `.github/workflows/nuclide-audit.yml`：新增 Python 单元测试 workflow。
+
+### 解释边界
+
+RIPL-4 的 Jπ 赋值包括唯一、受限候选和系统学推断。RIPL-4 readme 对 spin flag 的说明要求保留这些来源差异；NDLab 对 RIPL 也明确提醒，RIPL 对 ENSDF 非唯一或未知自旋给出的唯一数值应谨慎使用，原始 ENSDF 赋值应保留用于精细结构分析。不得只因为数值字段非空就将其当成实验唯一赋值。
+
+- RIPL-4 元数据与八核素记录：**SOURCE_VERIFIED + COMPUTATION_VERIFIED**。
+- ¹⁰⁵Zr / ⁸⁹Br 当前 CGMF odd-A integer-J：**COMPUTATION_VERIFIED**。
+- RIPL-4 的 ¹⁰⁵Zr `1/2+#`：**NON-EXPERIMENTAL / CANDIDATE**。
+- RIPL-4 的 ⁸⁹Br `(3/2-,5/2-)`：**AMBIGUOUS**。
+- 十条 E1 候选筛查：**COMPUTATION_VERIFIED**。
+- 生产核数据替换、Patch A/B/C：**NOT DONE**。
+- P/H/O 与气论映射：**UNCHANGED / BLOCKED**。
+
+CI：
+- Nuclide audit tests: https://github.com/anselmiao/CGMF/actions/runs/44732238855
+- CGMF G2 build #293: https://github.com/anselmiao/CGMF/actions/runs/44732234289
