@@ -186,6 +186,9 @@ def main():
         # logger limits output to the first ten events in each sidecar run.
         on_env["CGMF_G2_POPULATION_DIAGNOSTIC"] = "1"
         on_env["CGMF_G2_BIN_SAMPLE_DIAGNOSTIC"] = "1"
+        # Read-only CDF audit: reports the four outgoing probability masses
+        # and sampled threshold for the first ten events; consumes no RNG.
+        on_env["CGMF_G2_CDF_DIAGNOSTIC"] = "1"
         on_env["CGMF_RNG_AUDIT"] = "1"
         on_env["CGMF_RNG_AUDIT_FILE"] = str((on_dir / "rng-audit.tsv").resolve())
         on_env["CGMF_DATA_AUDIT"] = "1"
