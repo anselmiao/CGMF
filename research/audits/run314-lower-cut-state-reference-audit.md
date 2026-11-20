@@ -1,7 +1,7 @@
 # Run 314: lower-cut bridge state mismatch and I-136 event trace
 
 - Branch: `qi/fix-discrete-start-index`
-- Branch HEAD: `36101089dc48d8bd7346fb7ad7d24d657cc1e495`
+- Source revision analyzed: `36101089dc48d8bd7346fb7ad7d24d657cc1e495`
 - Workflow: CGMF G2 Build #314
 - Run ID: `44781809313`
 - Result: `failure`
@@ -111,3 +111,20 @@ Do not immediately merge a production behavior change. First prepare a minimal d
 - Complete G2 matrix and P/H/O competition: **NOT COMPLETED**.
 
 No gas-theory mechanism or empirical G2 claim is upgraded by this audit.
+
+
+## 8. Follow-up candidate correction
+
+After this audit, the lower-cut selector call was changed in commit
+`4265ed5094270fceb522b1b0a2f8dc4ffb010619` to pass the selected
+post-transition state (`mnext.getE(), mnext.getJ(), mnext.getP()`) rather
+than the pre-transition state (`mcurr`). This is a narrow call-site
+correction; it does not add multipoles, alter the discrete-level data, or
+change the selector's E1 rules.
+
+At the time this addendum was written, the new commit's CI result had not yet
+been established. The correction is therefore **CANDIDATE / NOT YET
+COMPUTATION_VERIFIED**. The expected I-136 result remains an unmappable
+bridge under the current one-level scheme; the next run must confirm that
+the diagnostic now reports the post-perturbation daughter state and must
+record the exact post-perturbation energy.
