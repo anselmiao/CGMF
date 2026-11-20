@@ -798,6 +798,29 @@ MCPoint mcFindNext(int c0, int c1, int jspin, int parity)
     }
   }
 
+  // Opt-in record of the actual CDF miss. This branch is reached only
+  // after every population interval has been traversed; logging consumes no
+  // additional random numbers and does not alter the selected physical path.
+  if (cdfDiagnostic && *cdfDiagnostic) {
+    std::cerr << std::setprecision(17)
+              << "[MC CDF FALLBACK] event_id=" << g2SidecarEventId
+              << " fragment_side=" << g2SidecarFragmentSide
+              << " Z=" << ncl[c0].za.getZ()
+              << " A=" << ncl[c0].za.getA()
+              << " random_threshold=" << r
+              << " cdf_consumed=" << s
+              << " threshold_minus_consumed=" << (r - s)
+              << " neutron_channel_enabled="
+              << (ncl[c0].cdt[neutron].status ? 1 : 0)
+              << " parent_ncont=" << ncl[c0].ncont
+              << " parent_ndisc=" << ncl[c0].ndisc
+              << " daughter_ncont="
+              << (ncl[c0].cdt[neutron].status ? ncl[c1].ncont : 0)
+              << " daughter_ndisc="
+              << (ncl[c0].cdt[neutron].status ? ncl[c1].ndisc : 0)
+              << std::endl;
+  }
+
   /*** if no transition, force decay to the ground state */
 //  m.set(c0,0,0,0,0.0);
 //  //IS: Ionel :: modified to force the transition into a state allowed by multiplicity 1 transition
