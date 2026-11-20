@@ -80,6 +80,19 @@ def analyze_sample(sample, levels):
             "allowed_multipolarities": allowed,
         })
 
+    lower_cut = sample.get("lower_cut_MeV")
+    if lower_cut is not None:
+        lower_cut = float(lower_cut)
+        if not math.isfinite(lower_cut) or lower_cut < 0:
+            raise ValueError("lower_cut_MeV must be finite and nonnegative")
+        trigger_high = min(high, lower_cut)
+        trigger_width = max(0.0, trigger_high - low)
+        trigger_fraction = trigger_width / (high - low)
+    else:
+        trigger_high = low
+        trigger_width = 0.0
+        trigger_fraction = None
+
     schemes = {}
     for scheme_name, multipoles in BRIDGE_SCHEMES.items():
         eligible = [
@@ -98,6 +111,11 @@ def analyze_sample(sample, levels):
             fraction = 0.0
         else:
             fraction = max(0.0, high - max(low, threshold)) / (high - low)
+        if threshold is None or trigger_width == 0.0:
+            reachable_trigger_fraction = None if lower_cut is None else 0.0
+        else:
+            reachable_trigger_width = max(0.0, trigger_high - max(low, threshold))
+            reachable_trigger_fraction = reachable_trigger_width / trigger_width
         schemes[scheme_name] = {
             "multipolarities": multipoles,
             "reachable_at_sample": bool(eligible),
@@ -105,6 +123,11 @@ def analyze_sample(sample, levels):
             "lowest_selection_allowed_level_MeV": threshold,
             "reachable_bin_fraction": fraction,
             "unreachable_bin_fraction": 1.0 - fraction,
+            "lower_cut_trigger_fraction_of_bin": trigger_fraction,
+            "reachable_fraction_within_lower_cut_region": reachable_trigger_fraction,
+            "unreachable_fraction_within_lower_cut_region": (
+                None if reachable_trigger_fraction is None else 1.0 - reachable_trigger_fraction
+            ),
         }
 
     return {
@@ -115,7 +138,7 @@ def analyze_sample(sample, levels):
             "spin": str(_spin(initial["spin"], "initial.spin")),
             "parity": initial["parity"],
         },
-        "bin": {"min_MeV": low, "max_MeV": high},
+        "bin": {"min_MeV": low, "max_MeV": high, "lower_cut_MeV": lower_cut},
         "candidate_levels": candidate_rows,
         "schemes": schemes,
     }
