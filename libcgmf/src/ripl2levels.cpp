@@ -207,7 +207,7 @@ void readDiscreteLevelData () {
 	}
 
 	if (dataAudit) {
-		const int auditZAIDs[] = {35089, 53132};
+		const int auditZAIDs[] = {35089, 53132, 53136};
 		for (unsigned int target = 0; target < sizeof(auditZAIDs)/sizeof(auditZAIDs[0]); ++target) {
 			const int wanted = auditZAIDs[target];
 			bool found = false;
