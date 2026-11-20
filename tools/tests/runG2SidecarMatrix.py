@@ -109,11 +109,25 @@ def sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def stdout_without_data_audit(path):
-    """Remove opt-in provenance lines before the simulation stdout comparison."""
+DIAGNOSTIC_PREFIXES = (
+    b"[CGMF DATA AUDIT",
+    b"[G2 LOW-ENERGY POPULATION]",
+    b"[G2 LOW-ENERGY BIN]",
+    b"[G2 POPULATION SELECTED]",
+    b"[G2 BIN SAMPLE]",
+    b"[MC bridge diagnostic]",
+)
+
+
+def stdout_without_diagnostics(path):
+    """Exclude only opt-in audit/diagnostic records from bytewise stdout comparisons.
+
+    Original logs are preserved unchanged; this normalized view is used only to
+    compare simulation output with diagnostics disabled/enabled.
+    """
     return b"".join(
         line for line in path.read_bytes().splitlines(keepends=True)
-        if not line.startswith(b"[CGMF DATA AUDIT")
+        if not line.startswith(DIAGNOSTIC_PREFIXES)
     )
 
 
@@ -171,6 +185,7 @@ def main():
         # Opt-in source diagnostic for low-energy continuum states; the C++
         # logger limits output to the first ten events in each sidecar run.
         on_env["CGMF_G2_POPULATION_DIAGNOSTIC"] = "1"
+        on_env["CGMF_G2_BIN_SAMPLE_DIAGNOSTIC"] = "1"
         on_env["CGMF_RNG_AUDIT"] = "1"
         on_env["CGMF_RNG_AUDIT_FILE"] = str((on_dir / "rng-audit.tsv").resolve())
         on_env["CGMF_DATA_AUDIT"] = "1"
@@ -230,8 +245,8 @@ def main():
         comparisons = {
             "histories_on_off": history_on.read_bytes() == history_off.read_bytes(),
             "histories_on_baseline": history_on.read_bytes() == history_baseline.read_bytes(),
-            "stdout_on_off": stdout_without_data_audit(stdout_on) == stdout_without_data_audit(stdout_off),
-            "stdout_on_baseline": stdout_without_data_audit(stdout_on) == stdout_without_data_audit(stdout_baseline),
+            "stdout_on_off": stdout_without_diagnostics(stdout_on) == stdout_without_diagnostics(stdout_off),
+            "stdout_on_baseline": stdout_without_diagnostics(stdout_on) == stdout_without_diagnostics(stdout_baseline),
             "rng_audit_on_off": audit_on.read_bytes() == audit_off.read_bytes(),
         }
         failed = [key for key, passed in comparisons.items() if not passed]
