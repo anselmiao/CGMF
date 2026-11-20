@@ -108,10 +108,18 @@
           "source_id": "ENSDF-I132",
           "note": "Relative photon intensity is normalized within the transition dataset; it is not the total isomer decay fraction. Total alpha=21.6 means transition conversion must be modeled separately.",
           "conversion_coefficient_required": true,
-          "prompt_status": "DELAYED_ISOMERIC_DECAY"
+          "prompt_status": "DELAYED_ISOMERIC_DECAY",
+          "decay_mode_id": "ISOMERIC_TRANSITION"
         }
       ],
-      "decay_channels_complete": true
+      "decay_channels_complete": true,
+      "transition_sets": [
+        {
+          "mode": "ISOMERIC_TRANSITION",
+          "complete": false,
+          "completeness_basis": "The adopted evaluation identifies the 98.0-keV E3 line and its intensity/ICC, but this manifest has not independently established that the listed observed-transition inventory is exhaustive for the IT mode."
+        }
+      ]
     },
     {
       "level_id": "136I-201keV-isomer",
