@@ -1497,3 +1497,19 @@ Run #253 的 `LastTest.log` 中 12 条 bridge diagnostics 覆盖 8 个核素，*
 Run #260/#261 均失败于 Cf-252 首个 sidecar case；两次 CTest artifact 均为 99 项中 87 项通过、12 项失败，12 条 bridge diagnostics 覆盖 8 个核素。原生 CTest step 的 `continue-on-error: true` 会使步骤摘要显示 success，但最终 native regression enforcement 读取真实 outcome 并失败。每个 sidecar artifact 只有 21 条 neutron transitions、10 条 mixed-history summaries，RNG audit 为空；不能用于 P/H/O 统计推断。
 
 本轮只做 RIPL 字段、CGMF 源码、ENSDF 与 CI artifact 的审计和重分类；没有修改生产数据、物理选择规则、golden 或 RNG。下一步先核验 (^{105}\mathrm{Zr}) ENSDF，并开展 test-only 的 `N_{\max}) / Nc / 逐能级可信度选择对照，不直接切换生产 cutoff。
+
+
+
+## Run #128：离散能级转换链因果修正与 Run #266/#267 复核
+
+独立审计：[discrete-level conversion path correction](research/audits/cgmf-discrete-level-conversion-path-correction-run128.md)。
+
+本轮发现 Run #127 对 RIPL (N_{max}=1) 与生产专用离散能级文件 `ndisc=1) 的因果联系说得过强，现予修正：
+
+- 生产 `readDiscreteLevelData()` 直接读取预处理后的 `DISCRETEDATA`，逐条加载文件中的能级；生产 `getDiscreteLevels()` 只按文件头给出的记录数复制到运行时。
+- `riplSetNmax()` 的 `normal/Nc)、`reassign/Nmax)、`all/Nol` 选择逻辑存在于 `#ifdef DEVUTIL` 的原始 RIPL 辅助读取路径。它不能单独证明当前生产专用文件的历史生成逻辑。
+- CGMF 官方手册明确说明，专用离散能级文件由 `transformLevelDataFile.ipynb` 和 `Nucleus.py` 处理生成，且包括缺失 Jπ 与 gamma transitions 修复。当前 fork 与上游 master tree 均未找到这两个转换器文件。因此，RIPL header 的 (N_{max}=1) 与专用文件 `ndisc=1) 是已核实的相符事实，但直接因果链仍为 **BLOCKED**。
+
+最新 Run #266（push）与 #267（PR）均使用提交 `a7acc2e1a629b1657c03ab35feec05f36569b9ab`，均失败。Run #267 build 与合成测试通过，但 G2 sidecar matrix 在 Cf-252 SF event 6、ⁱ³⁶I 的 79.303 keV、(7^+) lower-cut bridge 处失败；native CTest 有 12 项执行失败。artifact 只有 21 条 neutron transitions、10 条 mixed-history summaries，RNG audit 为空，不是完整矩阵样本。
+
+本轮没有修改生产核数据、物理规则、RNG、golden 或模拟矩阵。下一步先恢复/追溯历史 Python converter，再做 RIPL 原始行—专用文件—运行时对象的逐核素三段式审计；在转换链未复原前，不把 (N_{max})、(N_c) 或 `Nol` 任一模式直接替换进生产流程，也不恢复 P/H/O 竞争分析。
