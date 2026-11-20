@@ -691,6 +691,23 @@ void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
 
     //#endif
     if (!mnext.isValid()) {
+      const char *levelLookupDiagnostic =
+          std::getenv("CGMF_G2_LEVEL_LOOKUP_DIAGNOSTIC");
+      if (levelLookupDiagnostic && *levelLookupDiagnostic) {
+        std::cerr << "[CGMF G2 LOWER-CUT UNMAPPABLE]"
+                  << " event_id=" << g2SidecarEventId
+                  << " fragment_side=" << g2SidecarFragmentSide
+                  << " parent_Z=" << ncl[c0].za.getZ()
+                  << " parent_A=" << ncl[c0].za.getA()
+                  << " ndisc=" << ncl[c0].ndisc
+                  << " current_E_MeV=" << mcurr.getE()
+                  << " current_J=" << mcurr.getJ()
+                  << " current_parity=" << mcurr.getP()
+                  << " selected_E_MeV=" << mnext.getE()
+                  << " selected_J=" << mnext.getJ()
+                  << " selected_parity=" << mnext.getP()
+                  << std::endl;
+      }
       cgmTerminateCode("[MC history] lower-cut transition has no mappable discrete state");
       return;
     }
