@@ -14,6 +14,7 @@ on:
       - qi/fix-discrete-start-index
     paths:
       - "scripts/audit_nuclide_level_coverage.py"
+      - "scripts/validate_nuclide_spin_admission.py"
       - "tests/**"
       - ".github/workflows/nuclide-audit.yml"
 
