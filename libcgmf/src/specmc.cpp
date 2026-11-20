@@ -608,8 +608,10 @@ void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
 			double elcut = ncl[c0].lev[ncl[c0].ndisc-1].energy + CONTINUUM_LOWER_CUT;
       if( (mnext.getE() < elcut) && (!mnext.ifDiscrete()) ){
 				const int ndisc = ncl[c0].ndisc;
+        // The lower-cut bridge starts from the selected continuum daughter,
+        // after its within-bin energy perturbation above.
         const int index0 = mcSelectE1DiscreteBridge(
-            c0, mcurr.getE(), mcurr.getJ(), mcurr.getP(), "lower_cut");
+            c0, mnext.getE(), mnext.getJ(), mnext.getP(), "lower_cut");
         if (index0 < 0 || index0 >= ndisc) {
           mnext.markUnmappable();
         } else {
