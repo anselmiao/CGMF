@@ -24,7 +24,7 @@ The ENSDF adopted-level evaluation (February 2005; NDS 104, 497 (2005)) lists:
 - the 120-keV isomer has 14(2)% beta decay and 86(2)% IT;
 - an approximately 98-keV E3 transition connects the (8^-) isomer to the tentative (22?)-keV ((5^+)) level.
 
-The RIPL-3 record in the repository contains the corresponding 120-keV, (8^-), approximately 4.99e3-s isomer and an IT branch to the lower (22)-keV level. The current prepared CGMF `discreteLevels.dat` contains only the I-132 ground state (ndisc=1), consistent with the RIPL header's (Nol=6, Nmax=6, Nc=1) only if the current CGMF prepared-file selection has independently chosen one state; note that the RIPL header's Nmax is 6 here, not 1. This last observation must be kept distinct from the I-136 case.
+The RIPL-3 record in the repository contains the corresponding 120-keV, (8^-), approximately 4.99e3-s isomer and an IT branch to the lower (22)-keV level. The current prepared CGMF `discreteLevels.dat` contains only the I-132 ground state (ndisc=1), consistent with the RIPL header fields (Nol=6, Nog=6, Nmax=1, Nc=1). Under the CGMF DEVUTIL reader's `reassign` mode, Nmax is the selected count; this matches the one-level prepared/runtime scheme and the same Nmax truncation mechanism as I-136.
 
 **Implication:** I-132 is a plausible targeted B inclusion candidate, but the (22?\)-keV intermediate has uncertain energy and tentative (J^\pi). The generator must retain those uncertainties in a provenance manifest and must not silently present the central value as exact. It must also preserve the IT/beta competition and the observed gamma/ICC branch information; adding only a 120-keV level connected arbitrarily to the ground state is forbidden.
 
