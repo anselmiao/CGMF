@@ -76,8 +76,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s tools/tests -p 'testLowerCutReachability.py' -v
-          python3 tools/analysis/lowerCutReachability.py \\
-            --input tools/tests/fixtures/i136-event6-lower-cut.json \\
+          python3 tools/analysis/lowerCutReachability.py \
+            --input tools/tests/fixtures/i136-event6-lower-cut.json \
             --output build/i136-event6-lower-cut-reachability.json
           cat build/i136-event6-lower-cut-reachability.json
 
