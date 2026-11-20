@@ -22,7 +22,8 @@
       "bin_max_MeV": 0.054303252558488516,
       "spin": "6",
       "parity": -1,
-      "source": "CI run 44814083648 and repeat run 44815596766"
+      "source": "CI run 44814083648 and repeat run 44815596766",
+      "lower_cut_MeV": 0.02
     }
   ]
 }
