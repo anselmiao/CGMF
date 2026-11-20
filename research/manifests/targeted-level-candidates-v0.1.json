@@ -21,6 +21,11 @@
       "source_id": "ENSDF-I132-IT",
       "reference": "https://www.nndc.bnl.gov/ensdf/DatasetFetchServlet?datasource=ensdf&mass=132&nucmass=isMass&searchType=ensdfIndex",
       "version": "132I IT DECAY (1.387 H), 2005-04; dataset references include 1974Di03"
+    },
+    {
+      "source_id": "EXP-1974DI03-I132m",
+      "reference": "https://doi.org/10.1103/PhysRevC.10.1172",
+      "version": "Phys. Rev. C 10, 1172 (1974); abstract/source metadata verified; full article tables not retrieved"
     }
   ],
   "levels": [
@@ -79,14 +84,20 @@
           "fraction": 0.14,
           "uncertainty": 0.02,
           "source_id": "ENSDF-I132",
-          "fraction_basis": "total_isomer_decay"
+          "fraction_basis": "total_isomer_decay",
+          "supporting_source_ids": [
+            "EXP-1974DI03-I132m"
+          ]
         },
         {
           "mode": "ISOMERIC_TRANSITION",
           "fraction": 0.86,
           "uncertainty": 0.02,
           "source_id": "ENSDF-I132",
-          "fraction_basis": "total_isomer_decay"
+          "fraction_basis": "total_isomer_decay",
+          "supporting_source_ids": [
+            "EXP-1974DI03-I132m"
+          ]
         }
       ],
       "observed_transitions": [
@@ -106,10 +117,13 @@
             "N_plus_higher": 0.598
           },
           "source_id": "ENSDF-I132",
-          "note": "Relative photon intensity is normalized within the transition dataset; it is not the total isomer decay fraction. Total alpha=21.6 means transition conversion must be modeled separately.",
+          "note": "Relative photon intensity is normalized within the transition dataset; it is not the total isomer decay fraction. Total alpha=21.6 means transition conversion must be modeled separately. Primary experimental paper 1974Di03 reports the 98-keV IT line and measured Iγ/I(ce), but its full tables were not accessible in this audit.",
           "conversion_coefficient_required": true,
           "prompt_status": "DELAYED_ISOMERIC_DECAY",
-          "decay_mode_id": "ISOMERIC_TRANSITION"
+          "decay_mode_id": "ISOMERIC_TRANSITION",
+          "supporting_source_ids": [
+            "EXP-1974DI03-I132m"
+          ]
         }
       ],
       "decay_channels_complete": true,
