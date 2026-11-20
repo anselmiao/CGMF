@@ -90,6 +90,29 @@ class DeterministicCandidateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "lattice mismatch"):
             validate_manifest(doc)
 
+    def test_starter_manifest_cli_is_deterministic_and_catalog_only(self):
+        root = Path(__file__).resolve().parents[1]
+        manifest = root / "research/manifests/targeted-level-candidates-v0.1.json"
+        script = root / "scripts/build_deterministic_level_candidate.py"
+        with tempfile.TemporaryDirectory() as tmp:
+            out1, report1 = Path(tmp) / "candidate1.json", Path(tmp) / "report1.json"
+            out2, report2 = Path(tmp) / "candidate2.json", Path(tmp) / "report2.json"
+            for output, report in ((out1, report1), (out2, report2)):
+                import subprocess
+                subprocess.run(
+                    [sys.executable, str(script), "--manifest", str(manifest),
+                     "--output", str(output), "--report", str(report)],
+                    check=True, capture_output=True, text=True,
+                )
+            self.assertEqual(out1.read_bytes(), out2.read_bytes())
+            self.assertEqual(report1.read_bytes(), report2.read_bytes())
+            candidate = json.loads(out1.read_text(encoding="utf-8"))
+            report = json.loads(report1.read_text(encoding="utf-8"))
+            self.assertEqual(len(candidate["levels"]), 4)
+            self.assertEqual(report["counts"]["CATALOG_ONLY"], 4)
+            self.assertEqual(report["accepted_prompt_level_ids"], [])
+            self.assertFalse(report["production_data_modified"])
+
 
 if __name__ == "__main__":
     unittest.main()
