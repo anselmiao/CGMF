@@ -1504,11 +1504,11 @@ Run #260/#261 均失败于 Cf-252 首个 sidecar case；两次 CTest artifact �
 
 独立审计：[discrete-level conversion path correction](research/audits/cgmf-discrete-level-conversion-path-correction-run128.md)。
 
-本轮发现 Run #127 对 RIPL (N_{max}=1) 与生产专用离散能级文件 `ndisc=1) 的因果联系说得过强，现予修正：
+本轮发现 Run #127 对 RIPL (N_{max}=1) 与生产专用离散能级文件 `ndisc=1` 的因果联系说得过强，现予修正：
 
 - 生产 `readDiscreteLevelData()` 直接读取预处理后的 `DISCRETEDATA`，逐条加载文件中的能级；生产 `getDiscreteLevels()` 只按文件头给出的记录数复制到运行时。
 - `riplSetNmax()` 的 `normal/Nc)、`reassign/Nmax)、`all/Nol` 选择逻辑存在于 `#ifdef DEVUTIL` 的原始 RIPL 辅助读取路径。它不能单独证明当前生产专用文件的历史生成逻辑。
-- CGMF 官方手册明确说明，专用离散能级文件由 `transformLevelDataFile.ipynb` 和 `Nucleus.py` 处理生成，且包括缺失 Jπ 与 gamma transitions 修复。当前 fork 与上游 master tree 均未找到这两个转换器文件。因此，RIPL header 的 (N_{max}=1) 与专用文件 `ndisc=1) 是已核实的相符事实，但直接因果链仍为 **BLOCKED**。
+- CGMF 官方手册明确说明，专用离散能级文件由 `transformLevelDataFile.ipynb` 和 `Nucleus.py` 处理生成，且包括缺失 Jπ 与 gamma transitions 修复。当前 fork 与上游 master tree 均未找到这两个转换器文件。因此，RIPL header 的 (N_{max}=1) 与专用文件 `ndisc=1` 是已核实的相符事实，但直接因果链仍为 **BLOCKED**。
 
 最新 Run #266（push）与 #267（PR）均使用提交 `a7acc2e1a629b1657c03ab35feec05f36569b9ab`，均失败。Run #267 build 与合成测试通过，但 G2 sidecar matrix 在 Cf-252 SF event 6、ⁱ³⁶I 的 79.303 keV、(7^+) lower-cut bridge 处失败；native CTest 有 12 项执行失败。artifact 只有 21 条 neutron transitions、10 条 mixed-history summaries，RNG audit 为空，不是完整矩阵样本。
 
@@ -1773,7 +1773,7 @@ Nuclide audit workflow #4 已成功：
 https://github.com/anselmiao/CGMF/actions/runs/44732511956
 
 该 workflow 不只运行 3 个单元测试，还直接解析仓库当前 `data/ripl3-levels.dat` 与 `data/discreteLevels.dat` 的八个失败核素，实际 CSV 显示：
-- 八个核素的 `ndisc=1) 全部等于 `min(Nmax,Nc)=1)；
+- 八个核素的 `ndisc=1` 全部等于 `min(Nmax,Nc)=1`；
 - 只有 ⁸⁹Br 和 ¹⁰⁵Zr 的 CGMF 基态 J 违反 A 奇偶性对应的整数/半整数规则；
 - RIPL-3 原始记录中 ⁸⁹Br 的原始 spin 字符串已经是 `(3/2-,5/2-)`，数值 J=-1、parity=0；RIPL-4 继续保留该候选字符串。故 ZIP 的 3/2− public reference 和 5/2− correction 都不能仅凭该候选字符串升级为唯一值。
 - ¹⁰⁵Zr 在 RIPL-3 数值 Jπ 未知；RIPL-4 才提供 `1/2+#` 候选。
