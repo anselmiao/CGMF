@@ -1677,3 +1677,8 @@ G2 是核裂变统计模型与事件历史数据接口。即使获得稳定的�
 对照 `lanl/CGMF:master` 后确认，上游旧实现会在没有 E1 候选时强制转入 nearest-J 状态；本分支提交 `0ccd1dab` 有意删除该 fallback，统一使用 E1-only bridge，随后由 `9cb0474` 增加 unmappable fail-safe。故 Run #277 失败是严格 E1-only 设计暴露出的不可达状态，不是 CI 去重导致，也不能用恢复 nearest-J fallback 来“修复”。
 
 当前 `gamma_transition_selection.h` 虽有 E1/M1/E2 选择规则谓词及单元测试，但不含跃迁强度、分支比或多极性抽样概率；生产 bridge 仍只调用 E1。下一步必须先审计设计意图及真实强度来源，再决定是否存在有依据的混合多极性桥接方案。最近邻 fallback 不恢复，物理选择规则不放宽。
+
+
+### 补充：`ndisc=1` 的 reader 来源定位
+
+对 `libcgmf/src/ripl2levels.cpp` 的生产 reader 做了进一步检查：核素记录头部的 `nol` 被写入 `numberLevels`，`getDiscreteLevels()` 随后直接将该值赋给运行时 `ncl[k].ndisc` 并复制对应条目。因此本轮的 `ndisc=1` 不是该 reader 在运行时把多条能级裁剪成一条；专用 `discreteLevels.dat` 对应核素记录头的 level count 就是 1。RIPL 原始数据是否有更多能级、在哪个预处理环节丢失，仍 **BLOCKED**。
