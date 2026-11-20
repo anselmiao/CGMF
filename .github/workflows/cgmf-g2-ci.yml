@@ -49,6 +49,8 @@ jobs:
       - name: Run native CGMF test suite
         id: native_tests
         continue-on-error: true
+        env:
+          CGMF_G2_CDF_DIAGNOSTIC: "1"
         run: ctest --test-dir build --output-on-failure
 
       - name: Run G2 three-layer analysis unit tests (synthetic fixtures)
@@ -93,6 +95,8 @@ jobs:
             --events 200
 
       - name: Run complete G2 neutron and mixed-history sidecar matrix
+        env:
+          CGMF_G2_CDF_DIAGNOSTIC: "1"
         run: |
           set -euo pipefail
           python3 tools/tests/runG2SidecarMatrix.py \
