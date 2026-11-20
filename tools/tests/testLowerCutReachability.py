@@ -1,5 +1,8 @@
+import sys
 import unittest
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "analysis"))
 from lowerCutReachability import analyze_document, transition_allowed
 
 
@@ -54,12 +57,12 @@ class LowerCutReachabilityTests(unittest.TestCase):
                 "energy_MeV": 0.03,
                 "bin_min_MeV": 0.01,
                 "bin_max_MeV": 0.05,
-                "spin": "2",
+                "spin": "4",
                 "parity": 1,
             }],
         }
         result = analyze_document(doc)["results"][0]
-        # E2 is allowed for 2+ -> 2+; E1/M1 are not.
+        # Only E2 is allowed for 4+ -> 2+ among the tested multipoles.
         self.assertEqual(result["schemes"]["current_E1_only"]["reachable_bin_fraction"], 0.0)
         self.assertAlmostEqual(
             result["schemes"]["comparison_E1_M1_E2"]["reachable_bin_fraction"], 0.75
