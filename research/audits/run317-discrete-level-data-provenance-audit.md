@@ -76,6 +76,65 @@ The `discreteLevels.dat` blob at the 2020 CGMF 1.0.0 commit `b1a10b7bb542cbb7ada
 
 This pins the current branch's large data artifacts to the 2021 release content. It still does not reveal the exact conversion script/version or invocation that produced the 2021 `discreteLevels.dat` artifact. Git blob SHA is an identity/provenance marker, not a substitute for the missing generator record.
 
+### E. Frozen A-baseline is now byte-identified and CI-checked
+
+The full files were read from the branch and SHA-256 was computed over their raw bytes. The independently computed Git blob SHA-1 was also checked against the repository blob identity for `data/discreteLevels.dat`, confirming the byte stream used for the SHA-256 calculation matches the checked-in Git object.
+
+| File | Bytes | SHA-256 | Git blob SHA-1 |
+|---|---:|---|---|
+| `data/discreteLevels.dat` | 4,250,841 | `c79679e4247ddf69e3766ccce0b3177fcb7b253e26fd50ff621d2721d023c80e` | `dfd64cd3d7d890fec4b74e4bb82575ce0cc82e7c` |
+| `data/ripl3-levels.dat` | 27,316,178 | `32088e482125829d4b6059a93c061a77713e17bad89ad21f773aebc6a5bc9547` | `c3c3a816730deef172ccbd11b0dfd58b6d197d90` |
+
+The RIPL I-136 header is at line 157530:
+
+```text
+136I   136   53   11   19    1    1    3.780000    8.960000
+```
+
+The exact fixed-width fields consumed by `ripl2levels.cpp` decode as `Nol=11`, `Nog=19`, `Nmax=1`, `Nc=1`. The corresponding `discreteLevels.dat` I-136 record is at line 82133 and declares `ndisc=1`:
+
+```text
+136I  53136   1
+ 0.000000   1.0 -1  8.34000e+01  0
+```
+
+The eleven RIPL level headers (energies in MeV) are:
+
+| Level | Energy | RIPL spin/parity fields | Evaluated Jπ text |
+|---:|---:|---|---|
+| 1 | 0.000000 | (1.0,-1) | (1−) |
+| 2 | 0.086730 | unassigned | (0−,1−,2−) |
+| 3 | 0.222100 | unassigned | (0−,1,2−) |
+| 4 | 0.333970 | unassigned | (0−,1) |
+| 5 | 0.578770 | unassigned | (0−,1,2−) |
+| 6 | 0.630530 | unassigned | (0−,1) |
+| 7 | 0.640000 | (6.0,-1) | (6−) |
+| 8 | 0.738210 | unassigned | (0−,1−,2−) |
+| 9 | 2.656420 | (1.0,+1) | 1+ |
+| 10 | 3.137100 | (1.0,+1) | 1+ |
+| 11 | 3.235200 | (1.0,+1) | 1+ |
+
+This matters: `Nol=11` is the total listed-level count, not a statement that all eleven are equally complete or have unique (J^\pi). Six of the eleven RIPL rows have unassigned spin/parity fields. Level 7 has a listed (6^-) assignment, but it is at 640 keV and does not change the 19.06-keV event-6 energy-accessibility result.
+
+The file's own header states that it was generated from evaluated RIPL-3 discrete levels and that missing spin/parity assignments were set according to the CGMF manual. The official manual describes the preparation notebook/class and warns that such assignments can materially affect specific gamma decay chains. It also states that uncertain candidate assignments may be reduced to the first option and missing parity may be selected randomly. This confirms that the prepared file is not a verbatim copy of RIPL; the exact historical transformation code and random seed/version remain unavailable in the branch. See the [CGMF discrete-level preparation manual](https://cgmf-documentation.readthedocs.io/en/latest/discreteLevels.html).
+
+### F. A repeatable baseline checker now runs in CI
+
+Added:
+
+- `scripts/audit_i136_discrete_baseline.py`: raw-byte SHA-256 checks, exact RIPL fixed-width field parsing, RIPL level-count parsing, runtime I-136 extraction, and consistency checks.
+- `tests/test_audit_i136_discrete_baseline.py`: parser, raw-byte hash, and cross-file consistency tests.
+- `.github/workflows/nuclide-audit.yml`: compile and execute the checker against the repository's actual data files.
+
+The CI run completed successfully:
+
+- Run ID: `44789298368`
+- Commit: `cf947e75ba2663c09728b8ab88bbafe4f4a7d14a`
+- Result: all Python audit tests passed; eight-nuclide Run #277 audit passed; frozen I-136 baseline hash and record checks passed.
+- [Workflow run](https://github.com/anselmiao/CGMF/actions/runs/44789298368)
+
+This is a **COMPUTATION_VERIFIED data-integrity baseline**, not a reconstruction of the original notebook's transformation process and not a G2 physics run.
+
 ## Consequences for the Run #317 hypothesis
 
 The working hypothesis remains:
