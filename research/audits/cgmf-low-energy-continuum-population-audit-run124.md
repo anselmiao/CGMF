@@ -1,0 +1,52 @@
+# Run 241-243 follow-up: low-energy continuum population audit
+
+**Date:** 2026-11-20  
+**Branch:** `qi/fix-discrete-start-index`  
+**Source revision inspected:** `d9c8de55b0d336a6f740a6e048e4e5c654afff72` (plus same production sources at the CI code revision)  
+**Scope:** static source-path audit; no production code or physics-rule changes.
+
+## Executive finding
+
+The 136I event at 79.303 keV is not merely an E1 bridge edge case. The source contains an upstream low-energy continuum construction path that can populate continuum spin/parity bins all the way down to zero excitation when the nucleus has only one discrete level (the ground state):
+
+1. `setup.cpp::statSetupEnergyBin` sets `elmax = lev[ndisc-1].energy`. When `elmax == 0.0`, it explicitly sets `ncont = ntotal - 1`, so every non-ground-state energy bin down to the zero-energy boundary is treated as continuum.
+2. `setup.cpp::statSetupLevelDensity` computes a nonzero model level density in every bin `k <= ncont`, then fills each spin bin using `ldSpinDistribution` and assigns even/odd parity with `ldParityDistribution` (currently 0.5/0.5).
+3. With only one discrete level, `levden.cpp::ldLevelSpinCutoff` returns zero; `setup.cpp::statSetupLevelDensityParameter` therefore substitutes the mass-systematics spin cutoff. The continuum spin distribution is not constrained by the observed ground state spin alone.
+4. `specmc.cpp::mcFindNext` samples from the accumulated `ncl[].pop[k][j].even/odd` bins. Thus a low-energy high-spin continuum state can be selected by the Monte Carlo history, even though ENSDF has no known 136I excited level below 86.73 keV.
+
+This is a strong source-level explanation for how an unobserved low-energy continuum state such as (J^\pi=7^+) can enter the history. The exact event's full population ancestry has not yet been instrumented, so the final step from a particular parent transition to event 6 remains **SOURCE_SUPPORTED / NOT YET EVENT-TRACE VERIFIED**.
+
+## The bridge and production transition model are inconsistent in scope
+
+`gampop.cpp::specTransitionGamma` explicitly accumulates E1, M1, and E2 contributions for both continuum-to-continuum and continuum-to-discrete transitions. `specTc2d` applies multipole-dependent spin ranges and parity selection.
+
+By contrast, `specmc.cpp::mcSelectE1DiscreteBridge` accepts only E1. This is an implementation inconsistency in the fallback bridge relative to the production gamma-population model.
+
+However, broadening the bridge to E1/M1/E2 would **not** rescue the observed (7^+\to1^-) 136I event: (Delta J=6), which is outside all three multipolarities. Higher multipoles may be formally allowed under some parity combinations, but their strengths and sampling are not part of the current E1/M1/E2 model and must not be invented as an ad hoc escape.
+
+## ENSDF implication
+
+The runtime database had only the 136I ground state (0 mathrm{keV},,1^-). NNDC ENSDF adopted levels show the first listed excited state at 86.73 keV. The failed event energy is 79.303 keV. Therefore, there is no ENSDF-listed excited discrete state below this event energy to map to. The issue is not demonstrated to be a missing sub-79-keV discrete level; it is that the continuum level-density construction extends into an excitation region where the evaluated level scheme has no excited state.
+
+## Evidence classification
+
+| Claim | Status | Basis |
+|---|---|---|
+| One-level nuclei get `ncont=ntotal-1` when highest discrete energy is zero | SOURCE_VERIFIED | `setup.cpp::statSetupEnergyBin` |
+| The level-density array fills continuum spin/parity bins through `ncont` | SOURCE_VERIFIED | `setup.cpp::statSetupLevelDensity` |
+| One discrete level causes systematics spin-cutoff fallback | SOURCE_VERIFIED | `levden.cpp::ldLevelSpinCutoff`, `setup.cpp::statSetupLevelDensityParameter` |
+| Production gamma population includes E1/M1/E2 | SOURCE_VERIFIED | `gampop.cpp::specTransitionGamma` |
+| Fallback discrete bridge is E1-only | SOURCE_VERIFIED | `specmc.cpp::mcSelectE1DiscreteBridge` |
+| The event 6 136I state was generated through this exact continuum path | SOURCE_SUPPORTED, EVENT TRACE BLOCKED | Runtime state + source path; no per-event ancestry trace yet |
+| Expanding bridge to E1/M1/E2 resolves 136I 7+ to 1- | FALSE | (Delta J=6) excludes E1/M1/E2 |
+| Correct physical remedy | BLOCKED | Requires decision on low-energy continuum validity and level-density cutoff, plus regression data |
+
+## Next discriminating work
+
+1. Add diagnostics only (not physics changes) that print, for each selected continuum state near the lower cut: parent state, daughter bin, daughter (J^\pi), energy, and the E1/M1/E2 contributions to that bin.
+2. Compare the selected continuum population with the adopted discrete level scheme for every failing isotope. The key variable is the energy of the first excited level relative to the lower-cut event energy.
+3. Evaluate whether the continuum model should be prohibited below a nucleus-specific discrete/continuum matching threshold, rather than merely forcing a discrete transition at the end. This requires model-owner/physics justification and must be tested across all nuclei.
+4. Separately correct the fallback bridge's multipolarity coverage only if it is meant to mirror the E1/M1/E2 production model; this does not resolve states for which none of E1/M1/E2 is allowed.
+5. Do not modify transition strengths, selection rules, lower-cut, discrete data, golden outputs, or event skipping before these checks.
+
+No production source, nuclear data, golden output, or physical parameter was changed in this audit.
