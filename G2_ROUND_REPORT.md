@@ -1513,3 +1513,20 @@ Run #260/#261 均失败于 Cf-252 首个 sidecar case；两次 CTest artifact �
 最新 Run #266（push）与 #267（PR）均使用提交 `a7acc2e1a629b1657c03ab35feec05f36569b9ab`，均失败。Run #267 build 与合成测试通过，但 G2 sidecar matrix 在 Cf-252 SF event 6、ⁱ³⁶I 的 79.303 keV、(7^+) lower-cut bridge 处失败；native CTest 有 12 项执行失败。artifact 只有 21 条 neutron transitions、10 条 mixed-history summaries，RNG audit 为空，不是完整矩阵样本。
 
 本轮没有修改生产核数据、物理规则、RNG、golden 或模拟矩阵。下一步先恢复/追溯历史 Python converter，再做 RIPL 原始行—专用文件—运行时对象的逐核素三段式审计；在转换链未复原前，不把 (N_{max})、(N_c) 或 `Nol` 任一模式直接替换进生产流程，也不恢复 P/H/O 竞争分析。
+
+
+
+## Run #129：基态 Jπ 转换一致性审计与 Run #270 复核
+
+独立审计：[ground-state Jπ conversion consistency](research/audits/cgmf-ground-state-jpi-conversion-consistency-run129.md)。
+
+Run #270（ID `44692563592`，SHA `992c51c1f50b26032e9253bfc2d6d99db852ef0e`）Build 与合成测试通过，但完整 G2 sidecar matrix 在 Cf-252 SF event 6、ⁱ³⁶I、79.303 keV、(7^+) lower-cut bridge 处失败。G2 artifact 只有 21 条 neutron transitions、10 条 mixed-history summaries，RNG audit 为空；native regression 有 12 项失败，12 条 bridge diagnostics 覆盖 8 个核素。
+
+本轮直接比较当前分支 RIPL-3 原始数据、专用 `data/discreteLevels.dat` 与 CGMF 官方手册，发现两个明确的公开规则/生产输出差异：
+
+- ⁸⁹Br：RIPL 基态 (J=-1,pi=0)，候选文本为 ((3/2^-,5/2^-))；CGMF 专用文件却记录 (2^+)。这与手册“候选取第一项”的说明不一致。该核素正是 native regression 中发生 parity bridge rejection 的对象。
+- ¹⁰⁵Zr：RIPL 基态 (J=-1,pi=0)，无候选文本；CGMF 专用文件却记录 (4^+)。按手册对完全未知奇质量数基态的默认规则，应为 (1/2^+)。这与公开文档规则不一致。
+
+本轮批量筛查到 528 个 RIPL 第一能级 J/π 未指派的匹配核素，其中 462 条无候选文本；机械套用公开默认规则时 329 条输出不同。但手册“completely unknown ground state”的适用范围尚需历史转换器确认，因此这 329 条只是待核验差异，不直接定性为错误。
+
+结论是：生产专用文件中至少有两个可复核的 Jπ 输出与公开手册规则不一致，历史 Python 转换器具体实现及差异成因仍 **BLOCKED**。不据此自动覆盖数据，不改物理规则、RNG 或 golden。完整 G2、P/H/O 与气论证据状态仍未升级。
