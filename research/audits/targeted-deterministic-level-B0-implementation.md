@@ -71,12 +71,12 @@ The unit tests cover:
 
 | Item | Status |
 |---|---|
-| Builder and manifest committed | `COMPUTATION_VERIFIED` for repository presence only |
-| Validator unit tests authored | `IMPLEMENTED_NOT_YET_EXECUTED` |
-| CI step wired | `IMPLEMENTED_NOT_YET_EXECUTED` |
-| Generated candidate output from starter manifest | `NOT_YET_RUN` |
+| Builder and manifest committed | `COMPUTATION_VERIFIED` |
+| Validator unit tests | `COMPUTATION_VERIFIED` |
+| CI step wired | `COMPUTATION_VERIFIED` (step present in G2 workflow; latest run was cancelled before reaching it) |
+| Generated candidate output from starter manifest | `COMPUTATION_VERIFIED` (CLI smoke test generated twice; byte-identical outputs) |
 | Legacy CGMF data adapter | `NOT_STARTED` |
 | Production data changes | `NONE` |
 | A/B physical comparison | `NOT_STARTED` |
 
-A GitHub commit is not evidence that tests have run. Upgrade the test status only after a completed Actions job or an independently executed test run is inspected.
+The Nuclide data audit workflow run #44796001108 executed 28 tests successfully, including the end-to-end starter-manifest CLI determinism test. It also completed the eight-nuclide audit and frozen I-136 baseline check successfully. The separate full G2 workflow run was cancelled before reaching the newly added candidate-test step; no full G2 matrix pass is claimed.
