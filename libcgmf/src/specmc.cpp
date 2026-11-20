@@ -692,6 +692,56 @@ MCPoint mcFindNext(int c0, int c1, int jspin, int parity)
   MCPoint m;
   double  r = rng_cgm();
   double  s = 0.0;
+
+  // Read-only audit of the probability mass consumed by the CDF below.
+  // This is opt-in and deliberately performs no RNG calls.
+  const char *cdfDiagnostic = std::getenv("CGMF_G2_CDF_DIAGNOSTIC");
+  if (cdfDiagnostic && *cdfDiagnostic &&
+      g2SidecarEventId > 0 && g2SidecarEventId <= 10) {
+    double gammaContinuum = 0.0;
+    double gammaDiscrete = 0.0;
+    double neutronContinuum = 0.0;
+    double neutronDiscrete = 0.0;
+    for (int k = 1; k < ncl[c0].ncont; ++k) {
+      for (int j = 0; j <= ncl[c0].jmax; ++j) {
+        gammaContinuum += ncl[c0].pop[k][j].even;
+        gammaContinuum += ncl[c0].pop[k][j].odd;
+      }
+    }
+    for (int k = 0; k < ncl[c0].ndisc; ++k)
+      gammaDiscrete += ncl[c0].lpop[k];
+
+    if (ncl[c0].cdt[neutron].status) {
+      for (int k = 0; k < ncl[c1].ncont; ++k) {
+        for (int j = 0; j <= ncl[c1].jmax; ++j) {
+          neutronContinuum += ncl[c1].pop[k][j].even;
+          neutronContinuum += ncl[c1].pop[k][j].odd;
+        }
+      }
+      for (int k = 0; k < ncl[c1].ndisc; ++k)
+        neutronDiscrete += ncl[c1].lpop[k];
+    }
+
+    const double cdfTotal = gammaContinuum + gammaDiscrete +
+                            neutronContinuum + neutronDiscrete;
+    std::cerr << std::setprecision(17)
+              << "[MC CDF AUDIT] event_id=" << g2SidecarEventId
+              << " fragment_side=" << g2SidecarFragmentSide
+              << " Z=" << ncl[c0].za.getZ()
+              << " A=" << ncl[c0].za.getA()
+              << " random_threshold=" << r
+              << " gamma_continuum=" << gammaContinuum
+              << " gamma_discrete=" << gammaDiscrete
+              << " neutron_continuum=" << neutronContinuum
+              << " neutron_discrete=" << neutronDiscrete
+              << " cdf_total=" << cdfTotal
+              << " cdf_deficit=" << (1.0 - cdfTotal)
+              << " cdf_excess=" << (cdfTotal - 1.0)
+              << " ncont_parent=" << ncl[c0].ncont
+              << " ndisc_parent=" << ncl[c0].ndisc
+              << " jmax_parent=" << ncl[c0].jmax
+              << std::endl;
+  }
 	
 	/* gamma transition to continuum */
   /*** skip k=0, because there are initial populations */
