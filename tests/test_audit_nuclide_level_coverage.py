@@ -57,6 +57,21 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(rows[0]["status"], "CGMF_BELOW_MIN_NMAX_NC_BOUND")
         self.assertEqual(rows[0]["CGMF_ground_spin_quantization"], "VALID")
 
+    def test_ripl4_preserves_original_spin_info(self):
+        ripl_text = "\\n".join([
+            "105Zr  105   40    4    3    1    1    3.811932   14.667000",
+            "  1   0.000000   0.5  1  6.700E-01  0                     1/2+#  2 =  1.0000E+02 %B-",
+            "  2   0.124000   3.5  1             1                    [7/2+]  0",
+            "  3   0.285000   4.5  1             1                    [9/2+]  0",
+            "  4   0.507000   5.5  1             1                   [11/2+]  0",
+        ])
+        with tempfile.TemporaryDirectory() as tmp:
+            rp = Path(tmp)/"ripl4.dat"
+            rp.write_text(ripl_text, encoding="utf-8")
+            record = parse_ripl(rp)["105Zr"]
+        self.assertEqual(record.levels[0][2:4], (0.5, 1))
+        self.assertEqual(record.levels[0][5], "1/2+#")
+
 
 if __name__ == "__main__":
     unittest.main()
