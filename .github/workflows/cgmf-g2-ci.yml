@@ -1,5 +1,6 @@
 name: CGMF G2 Build
 # G2 regression workflow: event IDs are per-run; RNG seeds are tracked separately.
+# Opt-in sampling diagnostics are retained in artifacts and normalized only for comparisons.
 #
 # CI policy:
 # - Pull requests targeting the G2 integration branches receive one authoritative run.
