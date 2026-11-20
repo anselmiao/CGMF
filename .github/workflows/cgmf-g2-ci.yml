@@ -75,6 +75,14 @@ jobs:
       - name: Validate non-overlapping RNG seed ranges in matrix
         run: python3 tools/tests/validateG2SeedMatrix.py tools/tests/g2SidecarMatrix.json
 
+      - name: Verify bin-sample diagnostic non-interference on fixed Cf-252 seed range
+        run: |
+          set -euo pipefail
+          python3 tools/tests/probeG2BinSampleDiagnostic.py \
+            --binary build/utils/cgmf/cgmf.x \
+            --output-dir build/g2-sidecar-diagnostic-ab \
+            --events 200
+
       - name: Run complete G2 neutron and mixed-history sidecar matrix
         run: |
           set -euo pipefail
