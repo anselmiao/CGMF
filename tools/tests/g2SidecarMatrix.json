@@ -1,7 +1,7 @@
 {
   "schema": "cgmf.g2.sidecar-matrix-config.v1",
   "default_events": 40,
-  "rationale": "Native CGMF event-test configurations plus targeted 0.5 MeV and independent RNG-seed-range coverage. Six representative cases use 200 events; remaining cases use the native 40-event test size.",
+  "rationale": "Native CGMF event-test configurations plus targeted intermediate-energy coverage and three disjoint 200-event Pu-239 thermal RNG seed ranges (1-200, 201-400, 401-600).",
   "cases": [
     {
       "name": "cf252-sf",
@@ -54,22 +54,24 @@
       "name": "pu239-thermal",
       "ZAID": 94239,
       "energy_MeV": "2.53e-8",
-      "events": 200
+      "events": 200,
+      "coverage": "first RNG seed range"
     },
     {
-      "name": "pu239-thermal-seed10",
+      "name": "pu239-thermal-seed401",
       "ZAID": 94239,
       "energy_MeV": "2.53e-8",
-      "coverage": "non-default RNG seed-start test",
-      "seed_start": 10
+      "seed_start": 401,
+      "events": 200,
+      "coverage": "third non-overlapping independent RNG seed range"
     },
     {
       "name": "pu239-thermal-seed201",
       "ZAID": 94239,
       "energy_MeV": "2.53e-8",
       "events": 200,
-      "coverage": "second independent RNG seed range",
-      "seed_start": 201
+      "seed_start": 201,
+      "coverage": "second non-overlapping independent RNG seed range"
     },
     {
       "name": "pu239-10mev",

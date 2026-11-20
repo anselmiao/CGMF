@@ -10,13 +10,62 @@ import sys
 from pathlib import Path
 
 
-def run_command(command, cwd, env, log_path):
+def run_command(command, cwd, env, log_path, log_prefix=b""):
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("wb") as log:
+        if log_prefix:
+            log.write(log_prefix)
         subprocess.run(
             command, cwd=cwd, env=env, stdout=log,
             stderr=subprocess.STDOUT, check=True
         )
+
+
+def resolve_discrete_level_file(cwd, env, binary):
+    """Mirror CGMF's current-directory-first data-file lookup for audit metadata."""
+    filename = "discreteLevels.dat"
+    local_file = cwd / filename
+    if local_file.is_file():
+        return local_file.resolve(), "current-directory"
+
+    configured_dir = env.get("CGMFDATA", "")
+    if configured_dir:
+        data_dir = Path(configured_dir)
+        if not data_dir.is_absolute():
+            data_dir = cwd / data_dir
+        candidate = data_dir / filename
+        return (candidate.resolve(), "CGMFDATA") if candidate.is_file() else (None, "CGMFDATA-missing")
+
+    config_header = binary.resolve().parents[2] / "libcgmf" / "cgmf_config.h"
+    macros = {}
+    if config_header.is_file():
+        for line in config_header.read_text(encoding="utf-8").splitlines():
+            parts = line.split(None, 2)
+            if len(parts) == 3 and parts[0] == "#define" and parts[1] in {"INSTALL_DATADIR", "BUILD_DATADIR"}:
+                macros[parts[1]] = parts[2].strip().strip('"')
+    for macro in ("INSTALL_DATADIR", "BUILD_DATADIR"):
+        directory = macros.get(macro)
+        if directory and Path(directory).is_dir():
+            candidate = Path(directory) / filename
+            if candidate.is_file():
+                return candidate.resolve(), macro
+            return None, f"{macro}-directory-without-file"
+    return None, "no-readable-candidate"
+
+
+def discrete_level_audit_prefix(cwd, env, binary):
+    path, source = resolve_discrete_level_file(cwd, env, binary)
+    lines = [
+        "[CGMF DATA AUDIT PYTHON] CGMFDATA="
+        + (env.get("CGMFDATA") if env.get("CGMFDATA") is not None else "<unset>"),
+        f"[CGMF DATA AUDIT PYTHON] selected_by={source}",
+    ]
+    if path is None:
+        lines.append("[CGMF DATA AUDIT PYTHON] selected_file=<unresolved>")
+    else:
+        lines.append(f"[CGMF DATA AUDIT PYTHON] selected_file={path}")
+        lines.append(f"[CGMF DATA AUDIT PYTHON] sha256={sha256(path)}")
+    return ("\n".join(lines) + "\n").encode("utf-8")
 
 
 def read_audit(path, seed_start, event_count):
@@ -60,19 +109,43 @@ def sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+DIAGNOSTIC_PREFIXES = (
+    b"[CGMF DATA AUDIT",
+    b"[G2 LOW-ENERGY POPULATION]",
+    b"[G2 LOW-ENERGY BIN]",
+    b"[G2 POPULATION SELECTED]",
+    b"[G2 BIN SAMPLE]",
+    b"[MC bridge diagnostic]",
+)
+
+
+def stdout_without_diagnostics(path):
+    """Exclude only opt-in audit/diagnostic records from bytewise stdout comparisons.
+
+    Original logs are preserved unchanged; this normalized view is used only to
+    compare simulation output with diagnostics disabled/enabled.
+    """
+    return b"".join(
+        line for line in path.read_bytes().splitlines(keepends=True)
+        if not line.startswith(DIAGNOSTIC_PREFIXES)
+    )
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--matrix", type=Path, required=True)
     parser.add_argument("--validator", type=Path, required=True)
+    parser.add_argument("--mixed-validator", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
 
     binary = args.binary.resolve()
     validator = args.validator.resolve()
+    mixed_validator = args.mixed_validator.resolve()
     matrix_path = args.matrix.resolve()
     output_root = args.output_dir.resolve()
-    for required_path in (binary, validator, matrix_path):
+    for required_path in (binary, validator, mixed_validator, matrix_path):
         if not required_path.is_file():
             raise FileNotFoundError(required_path)
     matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
@@ -107,29 +180,42 @@ def main():
 
         on_env = os.environ.copy()
         on_env["CGMF_G2_SIDECAR"] = str((on_dir / "neutron-transition.jsonl").resolve())
+        on_env["CGMF_G2_MIXED_HISTORY_SIDECAR"] = str((on_dir / "mixed-history.jsonl").resolve())
         on_env["CGMF_G2_RUN_ID"] = run_id
+        # Opt-in source diagnostic for low-energy continuum states; the C++
+        # logger limits output to the first ten events in each sidecar run.
+        on_env["CGMF_G2_POPULATION_DIAGNOSTIC"] = "1"
+        on_env["CGMF_G2_BIN_SAMPLE_DIAGNOSTIC"] = "1"
+        # Read-only CDF audit: reports the four outgoing probability masses
+        # and sampled threshold for the first ten events; consumes no RNG.
+        on_env["CGMF_G2_CDF_DIAGNOSTIC"] = "1"
         on_env["CGMF_RNG_AUDIT"] = "1"
         on_env["CGMF_RNG_AUDIT_FILE"] = str((on_dir / "rng-audit.tsv").resolve())
+        on_env["CGMF_DATA_AUDIT"] = "1"
 
         off_env = os.environ.copy()
         off_env.pop("CGMF_G2_SIDECAR", None)
+        off_env.pop("CGMF_G2_MIXED_HISTORY_SIDECAR", None)
         off_env.pop("CGMF_G2_RUN_ID", None)
         off_env["CGMF_RNG_AUDIT"] = "1"
         off_env["CGMF_RNG_AUDIT_FILE"] = str((off_dir / "rng-audit.tsv").resolve())
 
         baseline_env = os.environ.copy()
         baseline_env.pop("CGMF_G2_SIDECAR", None)
+        baseline_env.pop("CGMF_G2_MIXED_HISTORY_SIDECAR", None)
         baseline_env.pop("CGMF_G2_RUN_ID", None)
         baseline_env.pop("CGMF_RNG_AUDIT", None)
         baseline_env.pop("CGMF_RNG_AUDIT_FILE", None)
 
         print(f"[{number}/{len(cases)}] {name}: ZAID={isotope}, En={energy} MeV, "
               f"event_ids=1..{event_count}, seeds={seed_start}..{seed_start + event_count - 1}", flush=True)
-        run_command(common, on_dir, on_env, on_dir / "sidecar-on.stdout")
+        data_audit_prefix = discrete_level_audit_prefix(on_dir, on_env, binary)
+        run_command(common, on_dir, on_env, on_dir / "sidecar-on.stdout", data_audit_prefix)
         run_command(common, off_dir, off_env, off_dir / "sidecar-off.stdout")
         run_command(common, baseline_dir, baseline_env, baseline_dir / "baseline.stdout")
 
         jsonl = on_dir / "neutron-transition.jsonl"
+        mixed_jsonl = on_dir / "mixed-history.jsonl"
         history_on = on_dir / "histories.cgmf.0"
         history_off = off_dir / "histories.cgmf.0"
         history_baseline = baseline_dir / "histories.cgmf.0"
@@ -138,7 +224,7 @@ def main():
         stdout_baseline = baseline_dir / "baseline.stdout"
         audit_on = on_dir / "rng-audit.tsv"
         audit_off = off_dir / "rng-audit.tsv"
-        for path in (jsonl, history_on, history_off, history_baseline,
+        for path in (jsonl, mixed_jsonl, history_on, history_off, history_baseline,
                      stdout_on, stdout_off, stdout_baseline, audit_on, audit_off):
             if not path.is_file():
                 raise FileNotFoundError(f"{name}: expected output missing: {path}")
@@ -149,14 +235,21 @@ def main():
              "--run-id", run_id],
             cwd=case_root, check=True
         )
+        subprocess.run(
+            [sys.executable, str(mixed_validator), str(mixed_jsonl),
+             "--neutron-jsonl", str(jsonl),
+             "--expected-events", str(event_count),
+             "--run-id", run_id],
+            cwd=case_root, check=True
+        )
         audit_summary = read_audit(audit_on, seed_start, event_count)
         read_audit(audit_off, seed_start, event_count)
 
         comparisons = {
             "histories_on_off": history_on.read_bytes() == history_off.read_bytes(),
             "histories_on_baseline": history_on.read_bytes() == history_baseline.read_bytes(),
-            "stdout_on_off": stdout_on.read_bytes() == stdout_off.read_bytes(),
-            "stdout_on_baseline": stdout_on.read_bytes() == stdout_baseline.read_bytes(),
+            "stdout_on_off": stdout_without_diagnostics(stdout_on) == stdout_without_diagnostics(stdout_off),
+            "stdout_on_baseline": stdout_without_diagnostics(stdout_on) == stdout_without_diagnostics(stdout_baseline),
             "rng_audit_on_off": audit_on.read_bytes() == audit_off.read_bytes(),
         }
         failed = [key for key, passed in comparisons.items() if not passed]
@@ -172,6 +265,7 @@ def main():
             "seed_start": seed_start, "seed_end": seed_start + event_count - 1,
             "event_id_start": 1, "event_id_end": event_count, "events_run": event_count,
             "neutron_records": len(records),
+            "mixed_fragment_summaries": len(mixed_jsonl.read_text(encoding="utf-8").splitlines()),
             "emitting_events": len({row["event_id"] for row in records}),
             "LF_records": sides["LF"], "HF_records": sides["HF"],
             "event_fragment_groups": len({(row["event_id"], row["fragment_side"]) for row in records}),
@@ -200,7 +294,7 @@ def main():
         "",
         f"- Cases passed: {len(results)}",
         f"- Events per execution mode: {summary['total_events_per_mode']}",
-        "- For every case: JSONL validation, RNG audit coverage, histories/stdout bytewise "
+        "- For every case: legacy and mixed-history JSONL validation, RNG audit coverage, histories/stdout bytewise "
         "comparison (on/off/baseline), and RNG audit bytewise comparison (on/off).",
         "",
         "| Case | ZAID | En (MeV) | Event IDs | RNG seeds | Neutron records | LF | HF |",

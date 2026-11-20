@@ -29,9 +29,13 @@ if(NOT ${util}.x.MPI)
                        FIXTURES_SETUP cgmf_u235nf-time-events_exec
                        FIXTURES_REQUIRED cgmf_u235nf-time-events_init)
 
+  # The discrete-start index correction changes rank-0 histories.
+  # Keep a strict full-file regression using the reviewed SHA-256 baseline.
   add_test(NAME cgmf_u235nf-time-events_diff
-           COMMAND ${CMAKE_COMMAND} -E compare_files
-                   histories.cgmf.serial.0.reference histories.cgmf.serial.0)
+           COMMAND ${CMAKE_COMMAND}
+                   -DINPUT=${CMAKE_CURRENT_BINARY_DIR}/histories.cgmf.serial.0
+                   -DEXPECTED_SHA256=7fc4f1d6742df234275b0094dfc92d872ba373f9c366352b99ca97209458fdbd
+                   -P ${CMAKE_SOURCE_DIR}/utils/cgmf/tests/checkHistorySha256.cmake)
   set_tests_properties(cgmf_u235nf-time-events_diff PROPERTIES
                        FIXTURES_REQUIRED cgmf_u235nf-time-events_exec)
 
@@ -55,8 +59,10 @@ else(${util}.x.MPI)
                        FIXTURES_REQUIRED cgmf_u235nf-time-events_mpi-init)
 
   add_test(NAME cgmf_u235nf-time-events_mpi-diff-0
-           COMMAND ${CMAKE_COMMAND} -E compare_files
-                   histories.cgmf.parallel.0.reference histories.cgmf.parallel.0)
+           COMMAND ${CMAKE_COMMAND}
+                   -DINPUT=${CMAKE_CURRENT_BINARY_DIR}/histories.cgmf.parallel.0
+                   -DEXPECTED_SHA256=e168064ab1c2ef8d02dea8a4a082d0211ff76996b64bb8ca92dbf5a914a2feda
+                   -P ${CMAKE_SOURCE_DIR}/utils/cgmf/tests/checkHistorySha256.cmake)
   set_tests_properties(cgmf_u235nf-time-events_mpi-diff-0 PROPERTIES
                        FIXTURES_REQUIRED cgmf_u235nf-time-events_mpi-exec)
 

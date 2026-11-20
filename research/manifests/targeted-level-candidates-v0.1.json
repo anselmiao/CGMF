@@ -1,0 +1,192 @@
+{
+  "schema_version": "cgmf-targeted-level-candidate-v0.2",
+  "description": "Source-audited targeted B catalog. v0.2 separates total decay-mode fractions, observed photon intensity, ICC and energy closure. No production prompt-gamma additions are authorized.",
+  "sources": [
+    {
+      "source_id": "ENSDF-I132",
+      "reference": "https://www.nndc.bnl.gov/ensnds/132/I/adopted.pdf",
+      "version": "NDS 104, 497 (2005); adopted evaluation"
+    },
+    {
+      "source_id": "ENSDF-I136",
+      "reference": "https://www.nndc.bnl.gov/ensdf/getadopted.jsp?nuc=136I",
+      "version": "NDS 152, 331 (2018); adopted evaluation"
+    },
+    {
+      "source_id": "RIPL3-I136",
+      "reference": "https://nucleus.iaea.org/Pages/ripl-3.aspx",
+      "version": "repository data/ripl3-levels.dat; RIPL-3"
+    },
+    {
+      "source_id": "ENSDF-I132-IT",
+      "reference": "https://www.nndc.bnl.gov/ensdf/DatasetFetchServlet?datasource=ensdf&mass=132&nucmass=isMass&searchType=ensdfIndex",
+      "version": "132I IT DECAY (1.387 H), 2005-04; dataset references include 1974Di03"
+    },
+    {
+      "source_id": "EXP-1974DI03-I132m",
+      "reference": "https://doi.org/10.1103/PhysRevC.10.1172",
+      "version": "Phys. Rev. C 10, 1172 (1974); abstract/source metadata verified; full article tables not retrieved"
+    }
+  ],
+  "levels": [
+    {
+      "level_id": "132I-22keV-tentative",
+      "zaid": 53132,
+      "Z": 53,
+      "A": 132,
+      "energy_MeV": 0.022,
+      "energy_uncertainty_MeV": 0.011,
+      "spin": null,
+      "parity": null,
+      "jpi_status": "TENTATIVE",
+      "half_life_s": null,
+      "source_id": "ENSDF-I132",
+      "decision": "CATALOG_ONLY",
+      "decision_reason": "ENSDF adopted level is 22(11) keV with tentative (5+) assignment. The adopted gamma table contains a parenthesized Eγ=(22 11) keV entry to the 4+ ground state, but no Iγ or multipolarity; the level-scheme arrow is explicitly uncertain. Retain only as an uncertain source observation, not as an admitted prompt gamma branch.",
+      "competing_decay": "UNKNOWN",
+      "gamma_branches": [],
+      "observed_transitions": [
+        {
+          "transition_id": "132I-22-to-gs",
+          "initial_level_id": "132I-22keV-tentative",
+          "final_level_id": "132I-gs",
+          "gamma_energy_keV": 22,
+          "gamma_energy_uncertainty_keV": 11,
+          "multipolarity": null,
+          "evidence_status": "ADOPTED_TABLE_PARENTHESES_NO_INTENSITY_NO_MULTIPOLARITY_LEVEL_SCHEME_UNCERTAIN",
+          "source_id": "ENSDF-I132",
+          "note": "ENSDF adopted gamma table prints Eγ=(22 11) keV from the tentative 22? (5+) level to the 4+ ground state. No relative photon intensity or multipolarity is assigned; the level-scheme arrow is explicitly uncertain. This is not a validated branch.",
+          "prompt_status": "UNCERTAIN_NOT_ADMITTED",
+          "energy_closure_status": "NOT_CHECKABLE_GAMMA_UNCERTAINTY_MISSING"
+        }
+      ],
+      "note_ground_state_reference": "The 4+ ground state at 0 keV must be added as an explicit level record before any graph edge to it can be validated."
+    },
+    {
+      "level_id": "132I-120keV-isomer",
+      "zaid": 53132,
+      "Z": 53,
+      "A": 132,
+      "energy_MeV": 0.12,
+      "energy_uncertainty_MeV": 0.02,
+      "spin": "8",
+      "parity": -1,
+      "jpi_status": "TENTATIVE",
+      "half_life_s": 4993,
+      "source_id": "ENSDF-I132",
+      "decision": "CATALOG_ONLY",
+      "decision_reason": "ENSDF adopted evaluation: 120(20) keV, (8-), T1/2=1.387 h; beta=14(2)%, IT=86(2%). XREF B identifies evidence from 132I IT decay, not direct 252Cf SF population. Its 98.0(10)-keV E3 transition feeds the tentative 22(11)-keV (5+) level. Long-lived isomeric decay is not prompt fission gamma emission.",
+      "competing_decay": "BETA_AND_IT",
+      "gamma_branches": [],
+      "decay_channels": [
+        {
+          "mode": "BETA_MINUS",
+          "fraction": 0.14,
+          "uncertainty": 0.02,
+          "source_id": "ENSDF-I132",
+          "fraction_basis": "total_isomer_decay",
+          "supporting_source_ids": [
+            "EXP-1974DI03-I132m"
+          ]
+        },
+        {
+          "mode": "ISOMERIC_TRANSITION",
+          "fraction": 0.86,
+          "uncertainty": 0.02,
+          "source_id": "ENSDF-I132",
+          "fraction_basis": "total_isomer_decay",
+          "supporting_source_ids": [
+            "EXP-1974DI03-I132m"
+          ]
+        }
+      ],
+      "observed_transitions": [
+        {
+          "transition_id": "132I-120-to-22",
+          "initial_level_id": "132I-120keV-isomer",
+          "final_level_id": "132I-22keV-tentative",
+          "gamma_energy_keV": 98,
+          "gamma_energy_uncertainty_keV": 1,
+          "multipolarity": "E3",
+          "relative_photon_intensity": 100,
+          "total_internal_conversion_coefficient": 21.6,
+          "partial_internal_conversion_coefficients": {
+            "K": 6.97,
+            "L": 11.5,
+            "M": 2.54,
+            "N_plus_higher": 0.598
+          },
+          "source_id": "ENSDF-I132",
+          "note": "Relative photon intensity is normalized within the transition dataset; it is not the total isomer decay fraction. Total alpha=21.6 means transition conversion must be modeled separately. Primary experimental paper 1974Di03 reports the 98-keV IT line and measured Iγ/I(ce), but its full tables were not accessible in this audit.",
+          "conversion_coefficient_required": true,
+          "prompt_status": "DELAYED_ISOMERIC_DECAY",
+          "decay_mode_id": "ISOMERIC_TRANSITION",
+          "supporting_source_ids": [
+            "EXP-1974DI03-I132m"
+          ]
+        }
+      ],
+      "decay_channels_complete": true,
+      "transition_sets": [
+        {
+          "mode": "ISOMERIC_TRANSITION",
+          "complete": false,
+          "completeness_basis": "The adopted evaluation identifies the 98.0-keV E3 line and its intensity/ICC, but this manifest has not independently established that the listed observed-transition inventory is exhaustive for the IT mode.",
+          "intensity_basis": "relative_photon_intensity_within_decay_mode",
+          "source_id": "ENSDF-I132"
+        }
+      ]
+    },
+    {
+      "level_id": "136I-201keV-isomer",
+      "zaid": 53136,
+      "Z": 53,
+      "A": 136,
+      "energy_MeV": 0.201,
+      "energy_uncertainty_MeV": 0.026,
+      "spin": "6",
+      "parity": -1,
+      "jpi_status": "TENTATIVE",
+      "half_life_s": 46.6,
+      "source_id": "ENSDF-I136",
+      "decision": "CATALOG_ONLY",
+      "decision_reason": "ENSDF 201(26) keV (6-) isomer; above event-6 19.06 keV excitation and XREF D rather than C; cannot resolve event 6",
+      "competing_decay": "BETA",
+      "gamma_branches": []
+    },
+    {
+      "level_id": "136I-RIPL3-640keV-conflict",
+      "zaid": 53136,
+      "Z": 53,
+      "A": 136,
+      "energy_MeV": 0.64,
+      "energy_uncertainty_MeV": 0,
+      "spin": "6",
+      "parity": -1,
+      "jpi_status": "TENTATIVE",
+      "half_life_s": 46.9,
+      "source_id": "RIPL3-I136",
+      "decision": "CATALOG_ONLY",
+      "decision_reason": "Retained as source-conflict record only; possible same-isomer identity is not established by this manifest",
+      "competing_decay": "BETA",
+      "gamma_branches": []
+    },
+    {
+      "level_id": "132I-gs",
+      "zaid": 53132,
+      "Z": 53,
+      "A": 132,
+      "energy_MeV": 0,
+      "energy_uncertainty_MeV": 0,
+      "spin": "4",
+      "parity": 1,
+      "jpi_status": "ADOPTED_UNIQUE",
+      "half_life_s": null,
+      "source_id": "ENSDF-I132",
+      "decision": "CATALOG_ONLY",
+      "decision_reason": "ENSDF adopted ground state, 4+; reference endpoint for the evaluated 132I level scheme.",
+      "competing_decay": "NONE",
+      "gamma_branches": []
+    }
+  ]
+}

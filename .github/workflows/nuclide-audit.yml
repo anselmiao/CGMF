@@ -1,0 +1,64 @@
+name: Nuclide data audit tests
+
+on:
+  push:
+    branches:
+      - qi/fix-discrete-start-index
+    paths:
+      - "scripts/audit_nuclide_level_coverage.py"
+      - "scripts/validate_nuclide_spin_admission.py"
+      - "scripts/audit_i136_discrete_baseline.py"
+      - "tests/**"
+      - ".github/workflows/nuclide-audit.yml"
+  pull_request:
+    branches:
+      - qi/fix-discrete-start-index
+    paths:
+      - "scripts/audit_nuclide_level_coverage.py"
+      - "scripts/validate_nuclide_spin_admission.py"
+      - "tests/**"
+      - ".github/workflows/nuclide-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  python-audit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile nuclide audit tools
+        run: |
+          python -m py_compile scripts/audit_nuclide_level_coverage.py
+          python -m py_compile scripts/validate_nuclide_spin_admission.py
+          python -m py_compile scripts/audit_i136_discrete_baseline.py
+      - name: Run nuclide audit unit tests
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Audit the eight Run 277 failure nuclides
+        run: |
+          python scripts/audit_nuclide_level_coverage.py \
+            --ripl data/ripl3-levels.dat \
+            --cgmf data/discreteLevels.dat \
+            --nuclides 136I 137I 105Zr 89Br 105Nb 96Y 138Te 132I \
+            --output "$RUNNER_TEMP/run277-nuclide-audit.csv"
+          cat "$RUNNER_TEMP/run277-nuclide-audit.csv"
+          python - <<'PY'
+          import csv, os
+          path = os.path.join(os.environ["RUNNER_TEMP"], "run277-nuclide-audit.csv")
+          with open(path, newline="", encoding="utf-8") as f:
+              rows = list(csv.DictReader(f))
+          assert len(rows) == 8, f"expected 8 nuclei, got {len(rows)}"
+          invalid = {r["nuclide"] for r in rows if r.get("CGMF_ground_spin_quantization", "").startswith("INVALID")}
+          assert invalid == {"89Br", "105Zr"}, f"unexpected odd/even spin anomalies: {sorted(invalid)}"
+          print("Confirmed current CGMF odd-A integer-spin anomalies:", ", ".join(sorted(invalid)))
+          PY
+
+      - name: Verify frozen I-136 RIPL-to-CGMF data baseline
+        run: |
+          python scripts/audit_i136_discrete_baseline.py \
+            --ripl data/ripl3-levels.dat \
+            --cgmf data/discreteLevels.dat
