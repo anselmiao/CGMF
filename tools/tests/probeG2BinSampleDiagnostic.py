@@ -68,11 +68,11 @@ def run_probe(binary, output_root, events):
 
     report = output_root / "diagnostic-ab-report.txt"
     report.write_text(
-        "CGMF_G2_BIN_SAMPLE_DIAGNOSTIC same-seed A/B probe\\n"
-        f"events={events}; ZAID=98252; energy_MeV=0.0; seeds=1..{events}\\n"
-        f"exit_off={off['returncode']}; exit_on={on['returncode']}\\n"
-        + "\\n".join(f"{key}={value}" for key, value in comparisons.items())
-        + "\\n",
+        "CGMF_G2_BIN_SAMPLE_DIAGNOSTIC same-seed A/B probe\n"
+        f"events={events}; ZAID=98252; energy_MeV=0.0; seeds=1..{events}\n"
+        f"exit_off={off['returncode']}; exit_on={on['returncode']}\n"
+        + "\n".join(f"{key}={value}" for key, value in comparisons.items())
+        + "\n",
         encoding="utf-8"
     )
     print(f"Diagnostic A/B non-interference verified: {len(comparisons)} comparisons", flush=True)
