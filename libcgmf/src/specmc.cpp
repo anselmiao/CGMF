@@ -601,8 +601,10 @@ void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
           std::getenv("CGMF_G2_BIN_SAMPLE_DIAGNOSTIC");
       if (binSampleDiagnostic && *binSampleDiagnostic &&
           g2SidecarEventId > 0 && g2SidecarEventId <= 10) {
-        const double lowerCut =
-            ncl[c].lev[ncl[c].ndisc-1].energy + CONTINUUM_LOWER_CUT;
+        const bool hasDiscreteLevels = ncl[c].ndisc > 0;
+        const double lowerCut = hasDiscreteLevels
+            ? ncl[c].lev[ncl[c].ndisc-1].energy + CONTINUUM_LOWER_CUT
+            : 0.0;
         std::cerr << std::setprecision(17)
                   << "[G2 BIN SAMPLE] event_id=" << g2SidecarEventId
                   << " fragment_side=" << g2SidecarFragmentSide
@@ -614,11 +616,12 @@ void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
                   << " Emax_MeV=" << emax
                   << " u=" << sampleU
                   << " E_sample_MeV=" << ex
-                  << " E_lower_cut_MeV=" << lowerCut
                   << " ndisc=" << ncl[c].ndisc
+                  << " lower_cut_available=" << (hasDiscreteLevels ? 1 : 0)
+                  << " E_lower_cut_MeV=" << (hasDiscreteLevels ? lowerCut : -1.0)
                   << " J_index=" << mnext.getJ()
                   << " parity=" << mnext.getP()
-                  << " below_cut=" << (ex < lowerCut ? 1 : 0)
+                  << " below_cut=" << (hasDiscreteLevels && ex < lowerCut ? 1 : 0)
                   << std::endl;
       }
       mnext.setE(ex);
