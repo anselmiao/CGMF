@@ -84,3 +84,10 @@ The run's artifacts were absent because the build/test directories were never pr
 - NNDC ENSDF ¹³²I adopted levels and gammas: https://www.nndc.bnl.gov/ensdf/getadopted.jsp?nuc=132I
 - NNDC references for 1974Di03: https://www.nndc.bnl.gov/ensdf/getrefs.jsp?dsid=ADOPTED+LEVELS%2C+GAMMAS&recid=132053001
 - GitHub Actions run #44804783105: https://github.com/anselmiao/CGMF/actions/runs/44804783105
+
+
+## 6. Correction to the ¹³²I 22-keV level transcription
+
+A page-image inspection of page 2 of the NNDC ENSDF adopted PDF (not text extraction alone) resolves the ambiguous table row. The row for the tentative 22? (5+) level prints Eγ=(22 11) keV to the 4+ ground state. The entry has no relative photon intensity and no multipolarity; the level scheme marks the decay as uncertain. The earlier 29.11-keV transcription was incorrect and is superseded. The candidate manifest and the original decay-scheme audit have been corrected to record Eγ=22 keV with 11-keV uncertainty, no Iγ, no multipolarity, and uncertain status. The branch remains excluded from prompt CGMF admission.
+
+Source: NNDC ENSDF ¹³²I Adopted Levels, Gammas, page 2, https://www.nndc.bnl.gov/ensnds/132/I/adopted.pdf (PDF page image inspected).
