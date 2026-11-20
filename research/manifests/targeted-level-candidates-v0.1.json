@@ -117,7 +117,9 @@
         {
           "mode": "ISOMERIC_TRANSITION",
           "complete": false,
-          "completeness_basis": "The adopted evaluation identifies the 98.0-keV E3 line and its intensity/ICC, but this manifest has not independently established that the listed observed-transition inventory is exhaustive for the IT mode."
+          "completeness_basis": "The adopted evaluation identifies the 98.0-keV E3 line and its intensity/ICC, but this manifest has not independently established that the listed observed-transition inventory is exhaustive for the IT mode.",
+          "intensity_basis": "relative_photon_intensity_within_decay_mode",
+          "source_id": "ENSDF-I132"
         }
       ]
     },
