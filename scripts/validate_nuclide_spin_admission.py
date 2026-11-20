@@ -4,18 +4,17 @@
 Input CSV columns:
   nuclide,A,J,parity,source_status,source_ref,source_version
 
-J is a numeric total angular momentum. parity is +1/-1 (also accepts + / -).
-source_status is one of ADOPTED_UNIQUE, PROVISIONAL, NONEXPERIMENTAL,
-AMBIGUOUS, UNKNOWN. Only ADOPTED_UNIQUE with a non-empty source reference and
-version can be ADMITTED. This tool validates the spin lattice; it does not
-establish that a source's nuclear assignment is experimentally proven.
+J accepts exact integers, decimals, and fractions such as 3/2. parity is
++1/-1 (also accepts + / -). Only ADOPTED_UNIQUE with a non-empty source
+reference and version can be ADMITTED. This validates the spin lattice; it
+does not establish that a source's nuclear assignment is experimentally proven.
 """
 from __future__ import annotations
 
 import argparse
 import csv
-import math
 import sys
+from fractions import Fraction
 from pathlib import Path
 
 ALLOWED_SOURCE_STATUS = {
@@ -35,23 +34,30 @@ def parse_parity(value: str) -> int | None:
     return None
 
 
-def spin_lattice_status(a: int, j: float, tolerance: float = 1e-8) -> str:
-    """Check 2J integral and its parity against A; does not validate the J value."""
-    if a <= 0 or not math.isfinite(j) or j < 0:
-        return "INVALID_DOMAIN"
-    twice_j = 2.0 * j
-    nearest = round(twice_j)
-    if not math.isclose(twice_j, nearest, rel_tol=0.0, abs_tol=tolerance):
+def parse_spin(value: str | int | float | Fraction) -> Fraction:
+    """Parse nuclear J exactly; accepts e.g. '3/2', '1.5', and 1.5."""
+    return value if isinstance(value, Fraction) else Fraction(str(value).strip())
+
+
+def spin_lattice_status(a: int, j: str | int | float | Fraction) -> str:
+    """Check exact 2J integrality and A/J parity compatibility."""
+    try:
+        spin = parse_spin(j)
+    except (ValueError, ZeroDivisionError):
         return "INVALID_NOT_INTEGER_OR_HALF_INTEGER"
-    if int(nearest) % 2 != a % 2:
+    if a <= 0 or spin < 0:
+        return "INVALID_DOMAIN"
+    twice_j = 2 * spin
+    if twice_j.denominator != 1:
+        return "INVALID_NOT_INTEGER_OR_HALF_INTEGER"
+    if twice_j.numerator % 2 != a % 2:
         return "INVALID_A_J_PARITY_MISMATCH"
     return "VALID"
 
 
 def classify_record(row: dict[str, str]) -> dict[str, str]:
-    nuclide = row.get("nuclide", "").strip()
     result = {
-        "nuclide": nuclide,
+        "nuclide": row.get("nuclide", "").strip(),
         "A": row.get("A", "").strip(),
         "J": row.get("J", "").strip(),
         "parity": row.get("parity", "").strip(),
@@ -62,13 +68,13 @@ def classify_record(row: dict[str, str]) -> dict[str, str]:
 
     try:
         a = int(result["A"])
-        j = float(result["J"])
-    except (TypeError, ValueError):
+        spin = parse_spin(result["J"])
+    except (TypeError, ValueError, ZeroDivisionError):
         result.update(admission="CONDITIONAL", reason="MISSING_OR_NONNUMERIC_A_OR_J",
                       spin_lattice="NOT_EVALUATED")
         return result
 
-    lattice = spin_lattice_status(a, j)
+    lattice = spin_lattice_status(a, spin)
     result["spin_lattice"] = lattice
     parity = parse_parity(result["parity"])
     source_status = result["source_status"]
