@@ -25,7 +25,7 @@ RIPL header 的字段顺序为 `Nol, Nog, Nmax, Nc`。其中：
 - `Nmax`：能级方案被认为完整的最高能级序号；
 - `Nc`：实验自旋/宇称被认为唯一的最高能级序号。
 
-RIPL 技术手册说明：(N_{\max}) 是能级方案完整性的截止；(N_c) 是自旋/宇称唯一性的截止。手册还说明，在已知能级少于 20 个或不确定能级超过 2 个、因而没有进行恒温拟合的情况下，默认 (N_{\max}=1)、(N_{\min}=1)、(E_{\max}=0)。参见 IAEA RIPL 手册：
+RIPL 技术手册说明：(N_{\max}) 是能级方案完整性的截止；Nc 是自旋/宇称唯一性的截止。手册还说明，在已知能级少于 20 个或不确定能级超过 2 个、因而没有进行恒温拟合的情况下，默认 (N_{\max}=1)、(N_{\min}=1)、(E_{\max}=0)。参见 IAEA RIPL 手册：
 https://www-nds.iaea.org/RIPL-3/handbook/ripl2.pdf （格式定义约第 14 页；默认值约第 17 页，PDF 文本行 1035–1048、1504–1506）。
 
 CGMF 源码 `libcgmf/src/ripl2levels.cpp::riplSetNmax` 明确区分：
@@ -46,7 +46,7 @@ CGMF 源码 `libcgmf/src/ripl2levels.cpp::riplSetNmax` 明确区分：
 | (^{137}\mathrm I) | 15 | 1 | 1 | 243.3 keV, (5/2^+\) | 1 |
 | (^{138}\mathrm{Te}) | 7 | 1 | 1 | 443.1 keV, (2^+\) | 1 |
 
-特别注意 (^{96}\mathrm Y)：(N_c=3) 而 (N_{\max}=1)。CGMF 的 `reassign` 路径使用 (N_{\max})，不是 (N_c)，因此仍只保留基态。不能把 (N_c) 与 (N_{\max}) 混为一个“可用能级数”。
+特别注意 (^{96}\mathrm Y)：(N_c=3) 而 (N_{\max}=1)。CGMF 的 `reassign` 路径使用 (N_{\max})，不是 Nc，因此仍只保留基态。不能把 Nc 与 (N_{\max}) 混为一个“可用能级数”。
 
 ## 3. 对 Run #253 / #260 / #261 失败的重分类
 
@@ -67,7 +67,7 @@ Run #253 与 Run #260/#261 的 native regression 日志均显示 12 条桥接诊
 - (^{96}\mathrm Y)：事件约 186.721 keV；RIPL 原始表列出 122.297 keV 的 (1^-\) 首激发态，但 (N_{\max}=1)、(N_c=3)。
 - (^{105}\mathrm{Nb})：事件约 282.518 keV；RIPL 原始表列出 127.9 keV 的 (7/2^+\) 首激发态，但 (N_{\max}=1)。
 
-这些不是已证明的文件截断 bug；它们是“存在被观察能级”与“模型只接纳完整方案内的能级”之间的差异。是否应在 CGMF 中采用 (N_c)、(N_{\max})、二者较小值或更细粒度的逐能级可信度，必须另做受控模型比较，不能直接切换到 `all`。
+这些不是已证明的文件截断 bug；它们是“存在被观察能级”与“模型只接纳完整方案内的能级”之间的差异。是否应在 CGMF 中采用 Nc、(N_{\max})、二者较小值或更细粒度的逐能级可信度，必须另做受控模型比较，不能直接切换到 `all`。
 
 ### C. 原始 RIPL 本身只有基态记录
 
@@ -77,7 +77,7 @@ Run #253 与 Run #260/#261 的 native regression 日志均显示 12 条桥接诊
 
 ## 4. 另一个独立问题：(^{89}\mathrm{Br}) 与 (^{105}\mathrm{Zr}) 的奇 A 整数自旋
 
-(^{89}\mathrm{Br}) 与 (^{105}\mathrm{Zr}) 的 CGMF 专用文件基态分别记录为 (J^\pi=2^+) 和 (4^+)。二者质量数均为奇数，因此整数 (J) 与核子数奇偶性不相容。此前全库审计已将它们列入 114 条奇 A 整数 J 异常；RIPL 原始记录的数值 J/宇称均未指派。
+(^{89}\mathrm{Br}) 与 (^{105}\mathrm{Zr}) 的 CGMF 专用文件基态分别记录为 (J^\pi=2^+) 和 4+。二者质量数均为奇数，因此整数 (J) 与核子数奇偶性不相容。此前全库审计已将它们列入 114 条奇 A 整数 J 异常；RIPL 原始记录的数值 J/宇称均未指派。
 
 对 (^{89}\mathrm{Br})，NNDC ENSDF 2021 评价给出的基态为 ((5/2^-)\)，首个激发态为 130.3 keV、((3/2^-)\)。来源：
 https://www.nndc.bnl.gov/ensdf/getadopted.jsp?nuc=89Br
@@ -104,12 +104,12 @@ Artifacts：
 
 - 两个 CI run 的真实状态、artifact 内容与 CTest 12/99 失败：**COMPUTATION_VERIFIED**。
 - 八个核素的 RIPL header (N_{\max}=1) 与原始 `Nol/Nc`：**COMPUTATION_VERIFIED**。
-- (N_{\max}) 与 (N_c) 的字段定义、RIPL 低数据量时默认 (N_{\max}=1)：**SOURCE_VERIFIED**（IAEA RIPL 手册）。
+- (N_{\max}) 与 Nc 的字段定义、RIPL 低数据量时默认 (N_{\max}=1)：**SOURCE_VERIFIED**（IAEA RIPL 手册）。
 - CGMF `reassign` 路径使用 (N_{\max})：**SOURCE_VERIFIED**。
 - 历史 notebook 对每个核素如何选择/修复 Jπ 的逐条执行记录：**BLOCKED**。
 - (^{89}\mathrm{Br}) ENSDF 基态与首激发态：**SOURCE_VERIFIED**。
 - (^{105}\mathrm{Zr}) 当前 ENSDF adopted ground-state Jπ：**BLOCKED / NOT EXTRACTED**。
-- 应否将 RIPL (N_{\max}=1) 核素切换为 (N_c) 或 `all`：**BLOCKED / MODEL COMPARISON REQUIRED**。
+- 应否将 RIPL (N_{\max}=1) 核素切换为 Nc 或 `all`：**BLOCKED / MODEL COMPARISON REQUIRED**。
 
 下一步优先顺序：
 
