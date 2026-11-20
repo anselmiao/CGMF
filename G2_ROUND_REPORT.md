@@ -1484,3 +1484,16 @@ Run #253 的 `LastTest.log` 中 12 条 bridge diagnostics 覆盖 8 个核素，*
 
 因此目前确认的是同一个软件条件 `ndisc=1`，但它导致至少两种不同的数据/模型问题。不能据此全局修改 continuum cutoff，也不能把 E1 桥接失败全部归因于一个核物理原因。下一步先完成 ¹⁰⁵Zr/¹⁰⁵Nb 的 ENSDF 首能级提取，再回到实际 `discreteLevels.dat` 逐核素对照来源、筛选和能级完整性。
 
+
+
+## Run #127：RIPL Nmax 完整性截止与 G2 bridge 失败重分类
+
+独立审计：[RIPL Nmax / bridge reclassification](research/audits/cgmf-ripl-nmax-and-bridge-reclassification-run127.md)。
+
+关键修正：Run #126 对 (^{132}\mathrm I)、(^{96}\mathrm Y) 等核素的“已知激发态未进入运行数据库”暂时归类为可能的数据遗漏；本轮读取 RIPL-3 原始 header 后发现，8 个失败核素全部是 (N_{\max}=1)。RIPL 的 (N_{\max}) 是能级方案完整性截止，不是原始观测能级总数。IAEA 手册指出，已知能级少于 20 个或不确定能级超过 2 个、未进行恒温拟合时，默认 (N_{\max}=1)。CGMF 的 `riplSetNmax` 在 `reassign` 模式使用 (N_{\max})，而 `normal` 模式使用 (N_c)。因此 (^{132}\mathrm I)、(^{96}\mathrm Y)、(^{105}\mathrm{Nb}) 的较高已观察能级未进入专用文件，不能直接认定为意外丢失；必须区分 completeness cutoff 与实际数据损坏。
+
+另一个独立问题是 (^{89}\mathrm{Br})、(^{105}\mathrm{Zr}) 的专用文件基态分别记录为 (2^+)、(4^+)，但二者 A 均为奇数，整数自旋不符合核子数奇偶性。(^{89}\mathrm{Br}) 的 ENSDF 2021 基态为 ((5/2^-)\)，首激发态为 130.3 keV、((3/2^-)\)。因此它的 bridge parity rejection 不能被当作单纯的 E1/M1 选择器问题。
+
+Run #260/#261 均失败于 Cf-252 首个 sidecar case；两次 CTest artifact 均为 99 项中 87 项通过、12 项失败，12 条 bridge diagnostics 覆盖 8 个核素。原生 CTest step 的 `continue-on-error: true` 会使步骤摘要显示 success，但最终 native regression enforcement 读取真实 outcome 并失败。每个 sidecar artifact 只有 21 条 neutron transitions、10 条 mixed-history summaries，RNG audit 为空；不能用于 P/H/O 统计推断。
+
+本轮只做 RIPL 字段、CGMF 源码、ENSDF 与 CI artifact 的审计和重分类；没有修改生产数据、物理选择规则、golden 或 RNG。下一步先核验 (^{105}\mathrm{Zr}) ENSDF，并开展 test-only 的 `N_{\max}) / (N_c) / 逐能级可信度选择对照，不直接切换生产 cutoff。
