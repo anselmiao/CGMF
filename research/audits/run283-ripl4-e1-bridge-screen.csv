@@ -1,0 +1,11 @@
+nuclide,event,site,Ei_MeV,Ji,pi_i,RIPL4_Nmax,RIPL4_Nc,RIPL4_levels_checked_min_bound,E1_candidates_unique_complete
+136I,6,lower_cut,0.0793032525585,7,1,10,1,1,0
+136I,2,mc_find_next,0.0205396718986,3,-1,10,1,1,0
+105Nb,9,lower_cut,0.282517921521,5.5,1,16,1,1,0
+96Y,24,lower_cut,0.18672109929,8,-1,1,3,1,0
+137I,7,lower_cut,0.132297895188,11.5,-1,1,13,1,0
+105Zr,12,lower_cut,1.17999760336,6,-1,1,1,1,0
+138Te,20,lower_cut,0.17769054627,11,-1,16,1,1,0
+136I,15,lower_cut,0.0811649573049,4,-1,10,1,1,0
+137I,16,lower_cut,0.0773941099933,7.5,1,1,13,1,0
+132I,20,lower_cut,0.277058766924,8,1,1,1,1,0
