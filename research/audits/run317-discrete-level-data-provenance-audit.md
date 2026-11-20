@@ -62,6 +62,20 @@ The CGMF User Manual's discrete-level preparation page independently states that
 
 This documentation establishes the intended preparation concept, but it does not prove that the branch's checked-in files were generated from that particular notebook implementation. The branch contains no matching `transformLevelDataFile.ipynb` or `Nucleus.py` in the inspected repository paths. The legacy C++ DEVUTIL path documents an Nmax-based ingest/selection policy, but it is not itself a demonstrated writer for the prepared file and must not be silently equated with the Python notebook workflow.
 
+### D. Git history pins the checked-in data artifact to the 2021 CGMF 1.1.0 data revision
+
+GitHub blob identity was compared directly across the current research branch and upstream release commit `e333c9ca3bd869032a170393a50942b31d992aeb` (CGMF 1.1.0):
+
+| File | Current branch blob | 2021 release blob | Result |
+|---|---|---|---|
+| `data/discreteLevels.dat` | `dfd64cd3d7d890fec4b74e4bb82575ce0cc82e7c` | `dfd64cd3d7d890fec4b74e4bb82575ce0cc82e7c` | identical |
+| `data/ripl3-levels.dat` | `c3c3a816730deef172ccbd11b0dfd58b6d197d90` | `c3c3a816730deef172ccbd11b0dfd58b6d197d90` | identical |
+| `data/ripl3-levels-2015.dat` | `3be0a27558c793837f6c3cc5deb45ea1deee7259` | `3be0a27558c793837f6c3cc5deb45ea1deee7259` | identical |
+
+The `discreteLevels.dat` blob at the 2020 CGMF 1.0.0 commit `b1a10b7bb542cbb7ada12adef28935da25364c7f` is instead `96a40d82bbcc937ab40421145e1d6cc7654eff28`. This is consistent with the 2021 release note that the prepared data file was expanded to include all isotopes. The RIPL source blob `ripl3-levels.dat` is identical at the 2020 and 2021 commits.
+
+This pins the current branch's large data artifacts to the 2021 release content. It still does not reveal the exact conversion script/version or invocation that produced the 2021 `discreteLevels.dat` artifact. Git blob SHA is an identity/provenance marker, not a substitute for the missing generator record.
+
 ## Consequences for the Run #317 hypothesis
 
 The working hypothesis remains:
