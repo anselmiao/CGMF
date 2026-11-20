@@ -37,6 +37,22 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(rows[0]["RIPL_ground_J"], -1.0)
         self.assertEqual(rows[0]["CGMF_ground_J"], 4.0)
 
+    def test_ripl4_completeness_cutoff_can_exceed_cgmf_ndisc(self):
+        ripl_text = "\n".join([
+            "136I   136   53   22   33   10    1    3.837363    9.105406",
+            "  1   0.000000   1.0 -1   8.34E+01  0",
+        ])
+        cgmf_text = "\n".join([
+            "136I  53136   1",
+            " 0.000000   1.0 -1  8.34000e+01  0",
+        ])
+        with tempfile.TemporaryDirectory() as tmp:
+            rp, cp = Path(tmp)/"ripl4.dat", Path(tmp)/"cgmf.dat"
+            rp.write_text(ripl_text, encoding="utf-8")
+            cp.write_text(cgmf_text, encoding="utf-8")
+            rows = audit(parse_ripl(rp), parse_cgmf(cp), {"136I"})
+        self.assertEqual(rows[0]["status"], "CGMF_BELOW_RIPL_NMAX")
+
 
 if __name__ == "__main__":
     unittest.main()
