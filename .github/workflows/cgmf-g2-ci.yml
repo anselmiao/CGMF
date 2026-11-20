@@ -66,6 +66,8 @@ jobs:
 
       - name: Run RNG seed matrix validator unit tests
         run: python3 -m unittest discover -s tools/tests -p 'testG2SeedMatrix.py' -v
+      - name: Run deterministic targeted discrete-level candidate tests
+        run: python3 -m unittest discover -s tests -p 'test_build_deterministic_level_candidate.py' -v
 
       - name: Validate non-overlapping RNG seed ranges in matrix
         run: python3 tools/tests/validateG2SeedMatrix.py tools/tests/g2SidecarMatrix.json
