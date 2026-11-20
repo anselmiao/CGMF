@@ -33,7 +33,7 @@ class ParserTests(unittest.TestCase):
             rp.write_text(ripl_text, encoding="utf-8")
             cp.write_text(cgmf_text, encoding="utf-8")
             rows = audit(parse_ripl(rp), parse_cgmf(cp), {"105Zr"})
-        self.assertEqual(rows[0]["status"], "MATCHES_RIPL_NMAX_CUTOFF")
+        self.assertEqual(rows[0]["status"], "MATCHES_MIN_NMAX_NC_BOUND")
         self.assertEqual(rows[0]["RIPL_ground_J"], -1.0)
         self.assertEqual(rows[0]["CGMF_ground_J"], 4.0)
 
@@ -51,7 +51,7 @@ class ParserTests(unittest.TestCase):
             rp.write_text(ripl_text, encoding="utf-8")
             cp.write_text(cgmf_text, encoding="utf-8")
             rows = audit(parse_ripl(rp), parse_cgmf(cp), {"136I"})
-        self.assertEqual(rows[0]["status"], "CGMF_BELOW_RIPL_NMAX")
+        self.assertEqual(rows[0]["status"], "CGMF_BELOW_MIN_NMAX_NC_BOUND")
 
 
 if __name__ == "__main__":
