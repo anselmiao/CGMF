@@ -129,6 +129,10 @@ def audit(ripl: dict[str, RiplRecord], cgmf: dict[str, CgmfRecord], selected: se
             status = "RIPL_PARSE_INCOMPLETE"
         elif cc.ndisc == rr.nmax and rr.nmax <= rr.nol:
             status = "MATCHES_RIPL_NMAX_CUTOFF"
+        elif cc.ndisc < rr.nmax:
+            status = "CGMF_BELOW_RIPL_NMAX"
+        elif cc.ndisc > rr.nmax and cc.ndisc <= rr.nol:
+            status = "CGMF_ABOVE_RIPL_NMAX_REVIEW"
         elif cc.ndisc < rr.nol:
             status = "CGMF_FEWER_THAN_RIPL_NOL_REVIEW"
         elif cc.ndisc > rr.nol:
