@@ -3,14 +3,45 @@
   "source_metadata": {
     "description": "CI-observed I-136 event-6 continuum state and runtime discrete-level snapshot",
     "runtime_discrete_level_file_sha256": "c79679e4247ddf69e3766ccce0b3177fcb7b253e26fd50ff621d2721d023c80e",
-    "limitation": "Only the observed runtime I-136 ground state is included; this fixture is not an adopted ENSDF level scheme."
+    "limitation": "Only the observed runtime I-136 ground state is included; this fixture is not an adopted ENSDF level scheme.",
+    "ensdf_reference": "ENSDF 136I Adopted Levels, Gammas, evaluated April 2018; https://www.nndc.bnl.gov/ensdf/getadopted.jsp?nuc=136I",
+    "ensdf_scope": "Adopted evaluated levels are listed as comparison data; they are not assumed to be present in the runtime CGMF level table or populated in this event."
   },
   "discrete_levels": [
     {
       "level_id": "I136-runtime-ground-state",
       "energy_MeV": 0,
       "spin": "1",
-      "parity": -1
+      "parity": -1,
+      "source": "runtime discrete-level snapshot"
+    },
+    {
+      "level_id": "I136-86.73keV-J0-",
+      "energy_MeV": 0.08673,
+      "spin": "0",
+      "parity": -1,
+      "source": "ENSDF adopted; XREF ABCD; Jpi alternatives"
+    },
+    {
+      "level_id": "I136-86.73keV-J1-",
+      "energy_MeV": 0.08673,
+      "spin": "1",
+      "parity": -1,
+      "source": "ENSDF adopted; XREF ABCD; Jpi alternatives"
+    },
+    {
+      "level_id": "I136-86.73keV-J2-",
+      "energy_MeV": 0.08673,
+      "spin": "2",
+      "parity": -1,
+      "source": "ENSDF adopted; XREF ABCD; Jpi alternatives"
+    },
+    {
+      "level_id": "I136-201keV-isomer",
+      "energy_MeV": 0.201,
+      "spin": "6",
+      "parity": -1,
+      "source": "ENSDF adopted; XREF D only (248Cm SF), not Cf-252 SF"
     }
   ],
   "continuum_samples": [
