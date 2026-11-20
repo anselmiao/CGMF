@@ -6,7 +6,7 @@ on:
       - qi/fix-discrete-start-index
     paths:
       - "scripts/audit_nuclide_level_coverage.py"
-      - "scripts/validate_nuclide_spin_admission.py"
+      - "scripts/validate_nuclide_spin_admission.py"\n      - "scripts/audit_i136_discrete_baseline.py"
       - "tests/**"
       - ".github/workflows/nuclide-audit.yml"
   pull_request:
@@ -32,7 +32,7 @@ jobs:
       - name: Compile nuclide audit tools
         run: |
           python -m py_compile scripts/audit_nuclide_level_coverage.py
-          python -m py_compile scripts/validate_nuclide_spin_admission.py
+          python -m py_compile scripts/validate_nuclide_spin_admission.py\n          python -m py_compile scripts/audit_i136_discrete_baseline.py
       - name: Run nuclide audit unit tests
         run: python -m unittest discover -s tests -p "test_*.py" -v
 
@@ -54,3 +54,9 @@ jobs:
           assert invalid == {"89Br", "105Zr"}, f"unexpected odd/even spin anomalies: {sorted(invalid)}"
           print("Confirmed current CGMF odd-A integer-spin anomalies:", ", ".join(sorted(invalid)))
           PY
+
+      - name: Verify frozen I-136 RIPL-to-CGMF data baseline
+        run: |
+          python scripts/audit_i136_discrete_baseline.py \
+            --ripl data/ripl3-levels.dat \
+            --cgmf data/discreteLevels.dat
