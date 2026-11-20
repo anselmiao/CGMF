@@ -1,0 +1,77 @@
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+from audit_nuclide_level_coverage import audit, parse_cgmf, parse_ripl
+
+
+class ParserTests(unittest.TestCase):
+    def test_ripl_header_fields_are_not_conflated(self):
+        header = "136I   136   53   11   19    1    1    3.780000    8.960000"
+        levels = [
+            "  1   0.000000   1.0 -1   8.34E+01  0",
+            "  2   0.086730  -1.0  0   4.00E-10  1",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / "ripl.dat"
+            p.write_text("\n".join([header] + levels), encoding="utf-8")
+            r = parse_ripl(p)["136I"]
+        self.assertEqual((r.nol, r.nog, r.nmax, r.nc), (11, 19, 1, 1))
+        self.assertEqual(len(r.levels), 2)
+
+    def test_cgmf_record_and_nmax_classification(self):
+        ripl_text = "\n".join([
+            "105Zr  105   40    1    0    1    1    4.090000   14.740001",
+            "  1   0.000000  -1.0  0   6.00E-01  0",
+        ])
+        cgmf_text = "\n".join([
+            "105Zr  40105   1",
+            " 0.000000   4.0  1  6.70000e-01  0",
+        ])
+        with tempfile.TemporaryDirectory() as tmp:
+            rp, cp = Path(tmp)/"ripl.dat", Path(tmp)/"cgmf.dat"
+            rp.write_text(ripl_text, encoding="utf-8")
+            cp.write_text(cgmf_text, encoding="utf-8")
+            rows = audit(parse_ripl(rp), parse_cgmf(cp), {"105Zr"})
+        self.assertEqual(rows[0]["status"], "MATCHES_MIN_NMAX_NC_BOUND")
+        self.assertEqual(rows[0]["RIPL_ground_J"], -1.0)
+        self.assertEqual(rows[0]["CGMF_ground_J"], 4.0)
+        self.assertEqual(rows[0]["CGMF_ground_spin_quantization"], "INVALID_ODD_A_INTEGER_J")
+
+    def test_ripl4_completeness_cutoff_can_exceed_cgmf_ndisc(self):
+        ripl_text = "\n".join([
+            "136I   136   53   10   33   10   10    3.837363    9.105406",
+            *[f"{i:3d}   0.000000   1.0 -1   8.34E+01  0" for i in range(1, 11)],
+        ])
+        cgmf_text = "\n".join([
+            "136I  53136   1",
+            " 0.000000   1.0 -1  8.34000e+01  0",
+        ])
+        with tempfile.TemporaryDirectory() as tmp:
+            rp, cp = Path(tmp)/"ripl4.dat", Path(tmp)/"cgmf.dat"
+            rp.write_text(ripl_text, encoding="utf-8")
+            cp.write_text(cgmf_text, encoding="utf-8")
+            rows = audit(parse_ripl(rp), parse_cgmf(cp), {"136I"})
+        self.assertEqual(rows[0]["status"], "CGMF_BELOW_MIN_NMAX_NC_BOUND")
+        self.assertEqual(rows[0]["CGMF_ground_spin_quantization"], "VALID")
+
+    def test_ripl4_preserves_original_spin_info(self):
+        ripl_text = "\n".join([
+            "105Zr  105   40    4    3    1    1    3.811932   14.667000",
+            "  1   0.000000   0.5  1  6.700E-01  0                     1/2+#  2 =  1.0000E+02 %B-",
+            "  2   0.124000   3.5  1             1                    [7/2+]  0",
+            "  3   0.285000   4.5  1             1                    [9/2+]  0",
+            "  4   0.507000   5.5  1             1                   [11/2+]  0",
+        ])
+        with tempfile.TemporaryDirectory() as tmp:
+            rp = Path(tmp)/"ripl4.dat"
+            rp.write_text(ripl_text, encoding="utf-8")
+            record = parse_ripl(rp)["105Zr"]
+        self.assertEqual(record.levels[0][2:4], (0.5, 1))
+        self.assertEqual(record.levels[0][5], "1/2+#")
+
+
+if __name__ == "__main__":
+    unittest.main()

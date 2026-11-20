@@ -41,3 +41,7 @@ add_subdirectory(pu239nf-16MeV-yields)
 add_subdirectory(u235nf-time-events)
 add_subdirectory(pu239nf-start-events)
 
+add_subdirectory(gamma-transition-selection)
+add_subdirectory(mcpoint-status)
+
+add_subdirectory(g2-sidecar-transaction)

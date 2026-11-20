@@ -1,13 +1,26 @@
 name: CGMF G2 Build
 # G2 regression workflow: event IDs are per-run; RNG seeds are tracked separately.
+# Opt-in sampling diagnostics are retained in artifacts and normalized only for comparisons.
+#
+# CI policy:
+# - Pull requests targeting the G2 integration branches receive one authoritative run.
+# - Direct pushes do not create a duplicate run alongside pull_request synchronize.
+# - workflow_dispatch remains available for deliberate standalone reruns.
+# - No path filter is used: GitHub can leave required PR checks pending when a workflow
+#   is skipped by path filters, so correctness of merge gating takes priority over
+#   suppressing documentation-only PR runs.
 
 on:
-  push:
+  pull_request:
     branches:
       - qi/g2-neutron-transition-history
       - qi/g2-unified-history-v1
-  pull_request:
+      - qi/fix-discrete-start-index
   workflow_dispatch:
+
+concurrency:
+  group: cgmf-g2-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -34,6 +47,10 @@ jobs:
         run: cmake --build build --parallel 2
 
       - name: Run native CGMF test suite
+        id: native_tests
+        continue-on-error: true
+        env:
+          CGMF_G2_CDF_DIAGNOSTIC: "1"
         run: ctest --test-dir build --output-on-failure
 
       - name: Run G2 three-layer analysis unit tests (synthetic fixtures)
@@ -52,11 +69,34 @@ jobs:
 
       - name: Run RNG seed matrix validator unit tests
         run: python3 -m unittest discover -s tools/tests -p 'testG2SeedMatrix.py' -v
+      - name: Run G2 sidecar diagnostic-filter unit tests
+        run: python3 -m unittest discover -s tools/tests -p 'testG2SidecarMatrixDiagnostics.py' -v
+      - name: Run deterministic targeted discrete-level candidate tests
+        run: python3 -m unittest discover -s tests -p 'test_build_deterministic_level_candidate.py' -v
+
+      - name: Run lower-cut discrete-state reachability tests and I-136 event-6 audit
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools/tests -p 'testLowerCutReachability.py' -v
+          python3 tools/analysis/lowerCutReachability.py \
+            --input tools/tests/fixtures/i136-event6-lower-cut.json \
+            --output build/i136-event6-lower-cut-reachability.json
+          cat build/i136-event6-lower-cut-reachability.json
 
       - name: Validate non-overlapping RNG seed ranges in matrix
         run: python3 tools/tests/validateG2SeedMatrix.py tools/tests/g2SidecarMatrix.json
 
+      - name: Verify bin-sample diagnostic non-interference on fixed Cf-252 seed range
+        run: |
+          set -euo pipefail
+          python3 tools/tests/probeG2BinSampleDiagnostic.py \
+            --binary build/utils/cgmf/cgmf.x \
+            --output-dir build/g2-sidecar-diagnostic-ab \
+            --events 200
+
       - name: Run complete G2 neutron and mixed-history sidecar matrix
+        env:
+          CGMF_G2_CDF_DIAGNOSTIC: "1"
         run: |
           set -euo pipefail
           python3 tools/tests/runG2SidecarMatrix.py \
@@ -175,3 +215,20 @@ jobs:
           name: cgmf-build-test-logs
           path: build/Testing/Temporary/
           if-no-files-found: ignore
+
+      - name: Save native regression outputs for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cgmf-native-regression-outputs
+          path: |
+            build/utils/cgmf/tests/**/histories.cgmf.serial.0
+          if-no-files-found: ignore
+
+      - name: Enforce native regression baseline after G2 diagnostics
+        if: always()
+        run: |
+          if [[ "${{ steps.native_tests.outcome }}" != "success" ]]; then
+            echo "Native regression comparison failed; preserve old golden files pending review."
+            exit 1
+          fi

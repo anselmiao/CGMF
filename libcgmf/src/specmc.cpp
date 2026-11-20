@@ -32,6 +32,8 @@ using namespace std;
 #include "kinematics.h"
 #include "FissionFragments.h"
 #include "rngcgm.h"
+#include "gamma_transition_selection.h"
+#include "g2_sidecar_transaction.h"
 
 void recordEmittedParticles (void);
 void recordEmittedParticlesFission (fissionEventType *);
@@ -39,6 +41,7 @@ void recordEmittedParticlesFission (fissionEventType *);
 static void    mcHistoryLoop            (MCPoint, Pdata *, double **);
 //static MCPoint mcFindNext               (int, int);
 static MCPoint mcFindNext               (int, int, int, int);
+static int       mcSelectE1DiscreteBridge (int, double, int, int, const char *);
 static int     mcGammaCascade           (int, int, double **);
 static MCPoint mcSampleStart            (double, Parity **);
 static MCPoint mcFixedStart             (double, Parity **);
@@ -75,6 +78,41 @@ static bool gammaTimeStampValid [ MAX_CASCADE ];
 
 static unsigned long long g2SidecarEventId = 0;
 static std::string g2SidecarFragmentSide;
+
+static G2SidecarEventBuffer g2PendingEvent;
+
+static void g2AppendPayload(const char *path, const std::string &payload) {
+  if (!path || !*path || payload.empty()) return;
+  std::ofstream output(path, std::ios::out | std::ios::app);
+  if (!output) {
+    cgmTerminateCode("[G2 sidecar] unable to open output file");
+    return;
+  }
+  output.write(payload.data(), static_cast<std::streamsize>(payload.size()));
+  output.flush();
+  if (!output) cgmTerminateCode("[G2 sidecar] output write failure");
+}
+
+static void g2StageAndCommitEvent(unsigned long long eventId, const std::string &side,
+                                  const std::string &neutronPayload,
+                                  const std::string &mixedPayload) {
+  const char *neutronPath = std::getenv("CGMF_G2_SIDECAR");
+  const char *mixedPath = std::getenv("CGMF_G2_MIXED_HISTORY_SIDECAR");
+  if ((!neutronPath || !*neutronPath) && (!mixedPath || !*mixedPath)) return;
+
+  const G2SidecarStageResult result =
+      g2PendingEvent.stage(eventId, side, neutronPayload, mixedPayload);
+  if (result == G2SidecarStageResult::Invalid) {
+    cgmTerminateCode("[G2 sidecar] invalid LF/HF event-pair staging sequence");
+    return;
+  }
+  if (result == G2SidecarStageResult::Staged) return;
+
+  // Keep each file's LF+HF event payload contiguous in one append/write operation.
+  g2AppendPayload(neutronPath, g2PendingEvent.neutronPair());
+  g2AppendPayload(mixedPath, g2PendingEvent.mixedPair());
+  g2PendingEvent.reset();
+}
 
 void setG2SidecarContext(unsigned long long event_id, const char *fragment_side) {
   g2SidecarEventId = event_id;
@@ -195,9 +233,17 @@ void specMCMainFission(fissionEventType *fe)
 	if(ncl[0].ncont == 0){
 
 		/*** find nearest discrete level for given Ex */
+		// statStoreLevelExcite returns a 1-based level number for the
+		// legacy specGammaDiscrete interface; mcGammaCascade expects a
+		// 0-based array index.
 		int nstart = statStoreLevelExcite(&ncl[0]);
+		int startLevel = (nstart > 0) ? nstart - 1 : 0;
+		if (startLevel < 0 || startLevel >= ncl[0].ndisc) {
+			cgmTerminateCode("[specMCMainFission] invalid discrete start level");
+			return;
+		}
   	np = 0;
-		int final_state = mcGammaCascade(0,nstart,spc);
+		int final_state = mcGammaCascade(0,startLevel,spc);
 		/*** insert final state */
 		int c = 0;
 		MCPoint mcurr;
@@ -306,11 +352,18 @@ void specMCMain(double initJ, int initP, double targE, double spinf, unsigned lo
   /*** decay start at a given discrete level */
   if(ncl[0].ncont == 0){
     /*** find nearest discrete level for given Ex */
+    // statStoreLevelExcite returns a 1-based level number; the Monte
+    // Carlo cascade indexes ncl[].lev with 0-based indices.
     int nstart = statStoreLevelExcite(&ncl[0]);
+    int startLevel = (nstart > 0) ? nstart - 1 : 0;
+    if (startLevel < 0 || startLevel >= ncl[0].ndisc) {
+      cgmTerminateCode("[specMCMain] invalid discrete start level");
+      return;
+    }
 
     for(unsigned long t=0 ; t<nsim ; t++){
       np = 0;
-      mcGammaCascade(0,nstart,spc);
+      mcGammaCascade(0,startLevel,spc);
       if(ctl.print_history) mcWriteHistory();
       recordEmittedParticles();
     }
@@ -367,6 +420,87 @@ void specMCMain(double initJ, int initP, double targE, double spinf, unsigned lo
 /**********************************************************/
 /*      Monte Carlo Neutron and Gamma Emission            */
 /**********************************************************/
+static int mcSelectE1DiscreteBridge(int nucleus, double initialEnergy,
+                                    int spinIndex, int initialParity,
+                                    const char *site)
+{
+  if (nucleus < 0) {
+    std::cerr << "[MC bridge diagnostic] site=" << site
+              << " invalid_nucleus_index=" << nucleus << std::endl;
+    return -1;
+  }
+
+  Nucleus &target = ncl[nucleus];
+  const int Z = target.za.getZ();
+  const int A = target.za.getA();
+  if (target.ndisc <= 0) {
+    std::cerr << "[MC bridge diagnostic] site=" << site
+              << " event_id=" << g2SidecarEventId
+              << " fragment_side=" << g2SidecarFragmentSide
+              << " nucleus_index=" << nucleus << " Z=" << Z << " A=" << A
+              << " initial_energy_MeV=" << initialEnergy
+              << " spin_index=" << spinIndex << " initial_parity=" << initialParity
+              << " ndisc=" << target.ndisc << " result=no_discrete_levels"
+              << std::endl;
+    return -1;
+  }
+
+  // Continuum population index j represents J=j+halfint(first-level spin).
+  const double initialSpin =
+      static_cast<double>(spinIndex) + halfint(target.lev[0].spin);
+  int selected = -1;
+  double bestRandom = -1.0;
+  int invalid = 0, energyRejected = 0, spinRejected = 0, parityRejected = 0;
+  for (int k = 0; k < target.ndisc; ++k) {
+    const Level &candidate = target.lev[k];
+    if (!std::isfinite(initialEnergy) || !std::isfinite(initialSpin) ||
+        !std::isfinite(candidate.energy) || !std::isfinite(candidate.spin) ||
+        (initialParity != 1 && initialParity != -1) ||
+        (candidate.parity != 1 && candidate.parity != -1) ||
+        initialEnergy < 0.0 || candidate.energy < 0.0 ||
+        initialSpin < 0.0 || candidate.spin < 0.0) {
+      ++invalid;
+      continue;
+    }
+    if (!(candidate.energy < initialEnergy)) {
+      ++energyRejected;
+      continue;
+    }
+    const double deltaSpin = std::fabs(initialSpin - candidate.spin);
+    if (deltaSpin > 1.0 || 1.0 > initialSpin + candidate.spin) {
+      ++spinRejected;
+      continue;
+    }
+    if (initialParity * candidate.parity != -1) {
+      ++parityRejected;
+      continue;
+    }
+
+    // Preserve legacy equal-candidate sampling among E1-allowed levels.
+    const double draw = rng_cgm();
+    if (draw > bestRandom) { bestRandom = draw; selected = k; }
+  }
+
+  if (selected < 0) {
+    std::cerr << std::setprecision(17)
+              << "[MC bridge diagnostic] site=" << site
+              << " event_id=" << g2SidecarEventId
+              << " fragment_side=" << g2SidecarFragmentSide
+              << " nucleus_index=" << nucleus << " Z=" << Z << " A=" << A
+              << " initial_energy_MeV=" << initialEnergy
+              << " spin_index=" << spinIndex
+              << " initial_spin=" << initialSpin
+              << " initial_parity=" << initialParity
+              << " ndisc=" << target.ndisc
+              << " rejected_invalid=" << invalid
+              << " rejected_energy=" << energyRejected
+              << " rejected_angular_momentum=" << spinRejected
+              << " rejected_parity=" << parityRejected
+              << " accepted=0" << std::endl;
+  }
+  return selected;
+}
+
 void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
 {
 //---------------------------------------
@@ -387,11 +521,70 @@ void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
     /*** calculate Hauser-Feshbach decay */
     if(EVAPORATION_SPECTRUM) specEvaporationBin(c0,pdt,spc);
     else                     spectraBinary(c0,pdt,spc);
-        
+
+    // Opt-in diagnostic: expose the low-energy continuum population that
+    // mcFindNext is about to sample. Restrict to the first ten sidecar events.
+    const char *populationDiagnostic = std::getenv("CGMF_G2_POPULATION_DIAGNOSTIC");
+    if (populationDiagnostic && *populationDiagnostic &&
+        g2SidecarEventId > 0 && g2SidecarEventId <= 10) {
+      const int z = ncl[c0].za.getZ();
+      const int a = ncl[c0].za.getA();
+      const double spinOffset = halfint(ncl[c0].lev[0].spin);
+      std::cerr << std::setprecision(12)
+                << "[G2 LOW-ENERGY POPULATION] event_id=" << g2SidecarEventId
+                << " fragment_side=" << g2SidecarFragmentSide
+                << " Z=" << z << " A=" << a
+                << " parent_E_MeV=" << mcurr.getE()
+                << " parent_J=" << (mcurr.getJ() + spinOffset)
+                << " parent_parity=" << mcurr.getP()
+                << " ncont=" << ncl[c0].ncont
+                << " lower_cut_MeV=" << CONTINUUM_LOWER_CUT
+                << std::endl;
+      for (int k = 1; k < ncl[c0].ncont; ++k) {
+        if (ncl[c0].excitation[k] > 0.5) continue;
+        for (int j = 0; j <= ncl[c0].jmax; ++j) {
+          const double even = ncl[c0].pop[k][j].even;
+          const double odd = ncl[c0].pop[k][j].odd;
+          if (even == 0.0 && odd == 0.0) continue;
+          std::cerr << "[G2 LOW-ENERGY BIN] event_id=" << g2SidecarEventId
+                    << " Z=" << z << " A=" << a
+                    << " k=" << k
+                    << " E_MeV=" << ncl[c0].excitation[k]
+                    << " spin_index=" << j
+                    << " J=" << (j + spinOffset)
+                    << " even_population=" << even
+                    << " odd_population=" << odd
+                    << std::endl;
+        }
+      }
+    }
+
     /*** move current position to the next state */
     //mnext = mcFindNext(c0,c1);
     mnext = mcFindNext(c0,c1,mcurr.getJ(),mcurr.getP());
-		
+    if (populationDiagnostic && *populationDiagnostic &&
+        g2SidecarEventId > 0 && g2SidecarEventId <= 10 && mnext.isValid()) {
+      const int daughterNucleus = mnext.getN();
+      const double daughterOffset = halfint(ncl[daughterNucleus].lev[0].spin);
+      std::cerr << "[G2 POPULATION SELECTED] event_id=" << g2SidecarEventId
+                << " fragment_side=" << g2SidecarFragmentSide
+                << " parent_E_MeV=" << mcurr.getE()
+                << " parent_J=" << (mcurr.getJ() + halfint(ncl[c0].lev[0].spin))
+                << " parent_parity=" << mcurr.getP()
+                << " daughter_Z=" << ncl[daughterNucleus].za.getZ()
+                << " daughter_A=" << ncl[daughterNucleus].za.getA()
+                << " daughter_E_MeV=" << mnext.getE()
+                << " daughter_J=" << (mnext.getJ() + daughterOffset)
+                << " daughter_parity=" << mnext.getP()
+                << " daughter_discrete=" << (mnext.ifDiscrete() ? 1 : 0)
+                << " daughter_index=" << mnext.getK()
+                << std::endl;
+    }
+    if (!mnext.isValid()) {
+      cgmTerminateCode("[MC history] next-state selection returned an invalid state");
+      return;
+    }
+
     if(PERTURB_EXCITATON_ENERGY && !mnext.ifDiscrete()){
       int c = mnext.getN();
       int k = mnext.getK();
@@ -399,8 +592,38 @@ void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
       double emin = (ncl[c].excitation[k+1] +  ncl[c].excitation[k])*0.5;
       if(emin < ncl[c].lev[ncl[c].ndisc-1].energy) emin = ncl[c].lev[ncl[c].ndisc-1].energy;
 
-			/*** perturbation to the final state energy within its energy bin */
-			double ex = emin + (emax-emin)*rng_cgm();
+      /*** perturbation to the final state energy within its energy bin */
+      // Keep exactly one RNG draw here so opt-in diagnostics do not alter
+      // the stochastic stream or random-number consumption order.
+      const double sampleU = rng_cgm();
+      const double ex = emin + (emax-emin)*sampleU;
+      const char *binSampleDiagnostic =
+          std::getenv("CGMF_G2_BIN_SAMPLE_DIAGNOSTIC");
+      if (binSampleDiagnostic && *binSampleDiagnostic &&
+          g2SidecarEventId > 0 && g2SidecarEventId <= 10) {
+        const bool hasDiscreteLevels = ncl[c].ndisc > 0;
+        const double lowerCut = hasDiscreteLevels
+            ? ncl[c].lev[ncl[c].ndisc-1].energy + CONTINUUM_LOWER_CUT
+            : 0.0;
+        std::cerr << std::setprecision(17)
+                  << "[G2 BIN SAMPLE] event_id=" << g2SidecarEventId
+                  << " fragment_side=" << g2SidecarFragmentSide
+                  << " Z=" << ncl[c].za.getZ()
+                  << " A=" << ncl[c].za.getA()
+                  << " k=" << k
+                  << " bin_center_MeV=" << ncl[c].excitation[k]
+                  << " Emin_MeV=" << emin
+                  << " Emax_MeV=" << emax
+                  << " u=" << sampleU
+                  << " E_sample_MeV=" << ex
+                  << " ndisc=" << ncl[c].ndisc
+                  << " lower_cut_available=" << (hasDiscreteLevels ? 1 : 0)
+                  << " E_lower_cut_MeV=" << (hasDiscreteLevels ? lowerCut : -1.0)
+                  << " J_index=" << mnext.getJ()
+                  << " parity=" << mnext.getP()
+                  << " below_cut=" << (hasDiscreteLevels && ex < lowerCut ? 1 : 0)
+                  << std::endl;
+      }
       mnext.setE(ex);
     }
 
@@ -409,39 +632,33 @@ void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
     // ***** FROM IONEL ON SEP. 5, 2012
 ////    if( (CONTINUUM_LOWER_CUT > 0.0) && (-1 == c1) ){
 		if( (CONTINUUM_LOWER_CUT > 0.0) && (c0 == mnext.getN()) ){
+      if (ncl[c0].ndisc <= 0) {
+        mnext.markUnmappable();
+      } else {
 			double elcut = ncl[c0].lev[ncl[c0].ndisc-1].energy + CONTINUUM_LOWER_CUT;
       if( (mnext.getE() < elcut) && (!mnext.ifDiscrete()) ){
-				int index0=-1 ;
-        int ndisc = ncl[c0].ndisc ;
-        double xpr = -1.;
-        for( int kk2 = 0 ; kk2 <  ndisc ; kk2++ ){
-          if( ncl[c0].lev[kk2].parity * mcurr.getP() > 0 ) continue ; //E1 selection rules only
-          if( fabs( ncl[c0].lev[kk2].spin - mcurr.getJ() ) < 2. && 1. <= ncl[c0].lev[kk2].spin + mcurr.getJ() ){
-            double xpr1 = rng_cgm() ;
-            if( xpr1 > xpr ){
-              xpr = xpr1 ;
-              index0 = kk2;
-            }
-          }
+				const int ndisc = ncl[c0].ndisc;
+        // The lower-cut bridge starts from the selected continuum daughter,
+        // after its within-bin energy perturbation above.
+        const int index0 = mcSelectE1DiscreteBridge(
+            c0, mnext.getE(), mnext.getJ(), mnext.getP(), "lower_cut");
+        if (index0 < 0 || index0 >= ndisc) {
+          mnext.markUnmappable();
+        } else {
+          mnext.set(c0, (int)ncl[c0].lev[index0].parity,
+                    (int)ncl[c0].lev[index0].spin, index0,
+                    ncl[c0].lev[index0].energy);
+          mnext.setDiscrete();
         }
-				
-        /* if such a transition does not exist, force transition to the closest-j state */
-        if(index0 == -1 ){
-          double delJ=100.;
-          for( int kk2 = 0 ; kk2 <  ndisc ; kk2++ ){
-            if( fabs( ncl[c0].lev[kk2].spin - mcurr.getJ() ) < delJ ){
-              delJ = fabs( ncl[c0].lev[kk2].spin - mcurr.getJ() );
-              index0 = kk2 ;
-            }
-          }
-          //	  cout << " finished, index0 = " << index0 << endl;
-        }
-        mnext.set(c0, (int)ncl[c0].lev[index0].parity,(int)ncl[c0].lev[index0].spin,index0,ncl[c0].lev[index0].energy);
-        mnext.setDiscrete();
+      }
       }
     }
 
     //#endif
+    if (!mnext.isValid()) {
+      cgmTerminateCode("[MC history] lower-cut transition has no mappable discrete state");
+      return;
+    }
     mcStoreHistory(false,mcurr,mnext,spc);
     mcurr = mnext;
 
@@ -453,6 +670,10 @@ void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
   /*** discrete level case */
 	int final_state = 0;
 	if(mnext.getK() > 0) final_state = mcGammaCascade(mnext.getN(),mnext.getK(),spc);
+    if (final_state < 0 || final_state >= ncl[mnext.getN()].ndisc) {
+      cgmTerminateCode("[MC history] final discrete-state index out of range");
+      return;
+    }
 
 	/*** insert final state */
 	int c = mcurr.getN();
@@ -471,6 +692,56 @@ MCPoint mcFindNext(int c0, int c1, int jspin, int parity)
   MCPoint m;
   double  r = rng_cgm();
   double  s = 0.0;
+
+  // Read-only audit of the probability mass consumed by the CDF below.
+  // This is opt-in and deliberately performs no RNG calls.
+  const char *cdfDiagnostic = std::getenv("CGMF_G2_CDF_DIAGNOSTIC");
+  if (cdfDiagnostic && *cdfDiagnostic &&
+      g2SidecarEventId > 0 && g2SidecarEventId <= 10) {
+    double gammaContinuum = 0.0;
+    double gammaDiscrete = 0.0;
+    double neutronContinuum = 0.0;
+    double neutronDiscrete = 0.0;
+    for (int k = 1; k < ncl[c0].ncont; ++k) {
+      for (int j = 0; j <= ncl[c0].jmax; ++j) {
+        gammaContinuum += ncl[c0].pop[k][j].even;
+        gammaContinuum += ncl[c0].pop[k][j].odd;
+      }
+    }
+    for (int k = 0; k < ncl[c0].ndisc; ++k)
+      gammaDiscrete += ncl[c0].lpop[k];
+
+    if (ncl[c0].cdt[neutron].status) {
+      for (int k = 0; k < ncl[c1].ncont; ++k) {
+        for (int j = 0; j <= ncl[c1].jmax; ++j) {
+          neutronContinuum += ncl[c1].pop[k][j].even;
+          neutronContinuum += ncl[c1].pop[k][j].odd;
+        }
+      }
+      for (int k = 0; k < ncl[c1].ndisc; ++k)
+        neutronDiscrete += ncl[c1].lpop[k];
+    }
+
+    const double cdfTotal = gammaContinuum + gammaDiscrete +
+                            neutronContinuum + neutronDiscrete;
+    std::cerr << std::setprecision(17)
+              << "[MC CDF AUDIT] event_id=" << g2SidecarEventId
+              << " fragment_side=" << g2SidecarFragmentSide
+              << " Z=" << ncl[c0].za.getZ()
+              << " A=" << ncl[c0].za.getA()
+              << " random_threshold=" << r
+              << " gamma_continuum=" << gammaContinuum
+              << " gamma_discrete=" << gammaDiscrete
+              << " neutron_continuum=" << neutronContinuum
+              << " neutron_discrete=" << neutronDiscrete
+              << " cdf_total=" << cdfTotal
+              << " cdf_deficit=" << (1.0 - cdfTotal)
+              << " cdf_excess=" << (cdfTotal - 1.0)
+              << " ncont_parent=" << ncl[c0].ncont
+              << " ndisc_parent=" << ncl[c0].ndisc
+              << " jmax_parent=" << ncl[c0].jmax
+              << std::endl;
+  }
 	
 	/* gamma transition to continuum */
   /*** skip k=0, because there are initial populations */
@@ -527,36 +798,43 @@ MCPoint mcFindNext(int c0, int c1, int jspin, int parity)
     }
   }
 
+  // Opt-in record of the actual CDF miss. This branch is reached only
+  // after every population interval has been traversed; logging consumes no
+  // additional random numbers and does not alter the selected physical path.
+  if (cdfDiagnostic && *cdfDiagnostic) {
+    std::cerr << std::setprecision(17)
+              << "[MC CDF FALLBACK] event_id=" << g2SidecarEventId
+              << " fragment_side=" << g2SidecarFragmentSide
+              << " Z=" << ncl[c0].za.getZ()
+              << " A=" << ncl[c0].za.getA()
+              << " random_threshold=" << r
+              << " cdf_consumed=" << s
+              << " threshold_minus_consumed=" << (r - s)
+              << " neutron_channel_enabled="
+              << (ncl[c0].cdt[neutron].status ? 1 : 0)
+              << " parent_ncont=" << ncl[c0].ncont
+              << " parent_ndisc=" << ncl[c0].ndisc
+              << " daughter_ncont="
+              << (ncl[c0].cdt[neutron].status ? ncl[c1].ncont : 0)
+              << " daughter_ndisc="
+              << (ncl[c0].cdt[neutron].status ? ncl[c1].ndisc : 0)
+              << std::endl;
+  }
+
   /*** if no transition, force decay to the ground state */
 //  m.set(c0,0,0,0,0.0);
 //  //IS: Ionel :: modified to force the transition into a state allowed by multiplicity 1 transition
-  int index0=-1 ;
-  int ndisc = ncl[c0].ndisc ;
-  double xpr = -1.;
-  for( int kk2 = 0 ; kk2 <  ndisc ; kk2++ ){
-    if( ncl[c0].lev[kk2].parity * parity > 0 ) continue ; //E1 selection rules only
-    if( fabs( ncl[c0].lev[kk2].spin - jspin ) < 2. && 1. <= ncl[c0].lev[kk2].spin + jspin ){
-      double xpr1 = rng_cgm() ;
-      if( xpr1 > xpr ){
-        xpr = xpr1 ;
-        index0 = kk2;
-      }
-    }
+  const int index0 = mcSelectE1DiscreteBridge(
+      c0, ncl[c0].max_energy, jspin, parity, "mc_find_next");
+  if (index0 < 0) {
+    m.markUnmappable();
+    return m;
   }
-  /* if such a transition does not exist, force transition to the closest-j state */
-  if(index0 == -1 ){
-    double delJ=100.;
-    for( int kk2 = 0 ; kk2 <  ndisc ; kk2++ ){
-      if( fabs( ncl[c0].lev[kk2].spin - jspin ) < delJ ){
-        delJ = fabs( ncl[c0].lev[kk2].spin - jspin );
-        index0 = kk2 ;
-      }
-    }
-  }
-	
-  m.set(c0, (int)ncl[c0].lev[index0].parity,(int)ncl[c0].lev[index0].spin,index0,ncl[c0].lev[index0].energy);
+    m.set(c0, (int)ncl[c0].lev[index0].parity,
+        (int)ncl[c0].lev[index0].spin, index0,
+        ncl[c0].lev[index0].energy);
   m.setDiscrete();
-  
+
   return(m);
 }
 
@@ -1068,18 +1346,13 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
 
   // Optional G2 neutron-transition sidecar. Disabled unless an output path is supplied.
   // Give each process a distinct output path; concurrent writers to one JSONL file are unsupported.
+  std::string g2NeutronPayload;
   const char *g2SidecarPath = std::getenv("CGMF_G2_SIDECAR");
   if (g2SidecarPath && *g2SidecarPath && fe->nu > 0) {
     const char *g2RunId = std::getenv("CGMF_G2_RUN_ID");
     if (!g2RunId || !*g2RunId || g2SidecarEventId == 0 ||
         (g2SidecarFragmentSide != "LF" && g2SidecarFragmentSide != "HF")) {
       cgmTerminateCode("[G2 sidecar] CGMF_G2_RUN_ID and valid event context are required");
-      return;
-    }
-
-    std::ofstream g2Output(g2SidecarPath, std::ios::out | std::ios::app);
-    if (!g2Output) {
-      cgmTerminateCode("[G2 sidecar] unable to open CGMF_G2_SIDECAR for append");
       return;
     }
 
@@ -1126,29 +1399,19 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
                 << neutronRecoilAfter[i][0] << "," << neutronRecoilAfter[i][1] << "," << neutronRecoilAfter[i][2] << "]}"
                 << "}\n";
     }
-    const std::string g2Payload = g2Records.str();
-    g2Output.write(g2Payload.data(), static_cast<std::streamsize>(g2Payload.size()));
-    g2Output.flush();
-    if (!g2Output) {
-      cgmTerminateCode("[G2 sidecar] write failure");
-      return;
-    }
+    g2NeutronPayload = g2Records.str();
   }
 
 
   // Optional complete mixed neutron/gamma/internal-conversion history.
   // One JSONL row per fragment, including fragments with no neutron emission.
+  std::string g2MixedPayload;
   const char *g2MixedPath = std::getenv("CGMF_G2_MIXED_HISTORY_SIDECAR");
   if (g2MixedPath && *g2MixedPath) {
     const char *g2RunId = std::getenv("CGMF_G2_RUN_ID");
     if (!g2RunId || !*g2RunId || g2SidecarEventId == 0 ||
         (g2SidecarFragmentSide != "LF" && g2SidecarFragmentSide != "HF")) {
       cgmTerminateCode("[G2 mixed history] CGMF_G2_RUN_ID and valid event context are required");
-      return;
-    }
-    std::ofstream mixedOutput(g2MixedPath, std::ios::out | std::ios::app);
-    if (!mixedOutput) {
-      cgmTerminateCode("[G2 mixed history] unable to open CGMF_G2_MIXED_HISTORY_SIDECAR");
       return;
     }
     std::ostringstream mixedRecord;
@@ -1248,14 +1511,11 @@ void recordEmittedParticlesFission (fissionEventType *fe) {
       return;
     }
     mixedRecord << "]}\n";
-    const std::string mixedPayload = mixedRecord.str();
-    mixedOutput.write(mixedPayload.data(), static_cast<std::streamsize>(mixedPayload.size()));
-    mixedOutput.flush();
-    if (!mixedOutput) {
-      cgmTerminateCode("[G2 mixed history] write failure");
-      return;
-    }
+    g2MixedPayload = mixedRecord.str();
   }
+
+  g2StageAndCommitEvent(g2SidecarEventId, g2SidecarFragmentSide,
+                        g2NeutronPayload, g2MixedPayload);
 
 	return;
 	
