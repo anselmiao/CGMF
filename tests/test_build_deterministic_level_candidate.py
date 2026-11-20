@@ -22,7 +22,7 @@ def base_doc():
              "spin": "6", "parity": -1, "jpi_status": "ADOPTED_UNIQUE",
              "source_id": "ensdf", "decision": "CATALOG_ONLY",
              "decision_reason": "isomer; above event-6 excitation; not a prompt bridge",
-             "competing_decay": "BETA"}}
+             "competing_decay": "BETA"}
         ]
     }
 
