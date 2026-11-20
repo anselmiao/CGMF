@@ -150,3 +150,17 @@ Run #277 的 matrix artifact 只含第一个 case `cf252-sf/on` 的部分产物�
 - 本分支 `0ccd1dab`：统一 E1 bridge 并删除 nearest-J fallback。
 - 本分支 `9cb0474`：对不可映射状态 fail-safe 终止。
 - 本分支 `libcgmf/include/gamma_transition_selection.h` blob `13311828472258327914f0830ef9a37d3cae5392`：E1/M1/E2 selection-rule predicates；不含 transition strengths。
+
+
+## 11. `ndisc=1` 在生产 reader 中的含义
+
+继续检查本分支 `libcgmf/src/ripl2levels.cpp`（约第 90–145、225–250 行）后，可确认生产专用离散能级文件的读取过程：
+
+- reader 从每个核素记录头部读取 `nol`（number of levels）；
+- 将 `numberLevels[c] = nol`；
+- 随后逐条读入 `nol` 个能级记录；
+- `getDiscreteLevels()` 对匹配核素直接执行 `ncl[k].ndisc = numberLevels[id]` 并复制这些记录。
+
+因此，对于本轮运行时诊断为 `ndisc=1` 的核素，运行时 reader 不是在该函数中把多个能级动态裁成一个；它读取到的专用数据文件对应记录头部的 level count 就是 1。**但这仍不能证明 RIPL 原始数据只有一个能级**：是否在上游预处理、数据版本选择或数据文件生成时被裁剪，仍需逐核素追溯。
+
+这一点将数据链阻塞进一步缩小为：专用 `discreteLevels.dat` 的核素记录头与历史生成过程，而不是 `getDiscreteLevels()` 运行时的筛选循环。
