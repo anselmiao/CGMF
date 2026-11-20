@@ -77,6 +77,24 @@ class LowerCutReachabilityTests(unittest.TestCase):
             result["schemes"]["comparison_E1_M1_E2"]["reachable_bin_fraction"], 0.75
         )
 
+
+    def test_adopted_ensdf_levels_are_above_event6_sample(self):
+        fixture = Path(__file__).resolve().parent / "fixtures" / "i136-event6-lower-cut.json"
+        import json
+        doc = json.loads(fixture.read_text(encoding="utf-8"))
+        result = analyze_document(doc)["results"][0]
+        adopted = [
+            row for row in result["candidate_levels"]
+            if row["level_id"].startswith("I136-86.73keV")
+            or row["level_id"] == "I136-201keV-isomer"
+        ]
+        self.assertEqual(len(adopted), 4)
+        self.assertTrue(all(not row["energy_accessible_at_sample"] for row in adopted))
+        self.assertTrue(all(
+            row["level_id"] not in result["schemes"]["comparison_E1_M1_E2"]["eligible_level_ids_at_sample"]
+            for row in adopted
+        ))
+
     def test_rejects_invalid_bin(self):
         doc = {
             "schema_version": "cgmf-lower-cut-reachability-v1",
