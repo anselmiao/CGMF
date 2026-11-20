@@ -58,6 +58,63 @@ def _transition_allowed(ji: Fraction, jf: Fraction, pi: int, pf: int, multipole:
     return pi * pf == parity_factor
 
 
+
+def derive_mode_conditional_branches(level: dict, mode: str) -> dict:
+    """Derive conditional transition and photon/conversion probabilities.
+
+    ENSDF relative photon intensities I_gamma are converted to total transition
+    weights I_gamma * (1 + alpha). The result is BLOCKED unless the evaluated
+    transition inventory for this decay mode is explicitly complete.
+    """
+    channels = {c.get("mode"): c for c in level.get("decay_channels", [])}
+    if mode not in channels:
+        return {"status": "BLOCKED", "reason": "decay mode fraction is absent"}
+    channel = channels[mode]
+    sets = {x.get("mode"): x for x in level.get("transition_sets", [])}
+    transition_set = sets.get(mode)
+    if not transition_set or transition_set.get("complete") is not True:
+        return {"status": "BLOCKED", "reason": "transition inventory for decay mode is not certified complete"}
+    transitions = [x for x in level.get("observed_transitions", []) if x.get("decay_mode_id") == mode]
+    if not transitions:
+        return {"status": "BLOCKED", "reason": "no observed transitions for decay mode"}
+    weights = []
+    for tr in transitions:
+        intensity = tr.get("relative_photon_intensity")
+        alpha = tr.get("total_internal_conversion_coefficient")
+        if intensity is None or alpha is None:
+            return {"status": "BLOCKED", "reason": "each transition requires photon intensity and total ICC"}
+        intensity = _finite_nonnegative(intensity, "relative_photon_intensity")
+        alpha = _finite_nonnegative(alpha, "total_internal_conversion_coefficient")
+        if intensity <= 0:
+            return {"status": "BLOCKED", "reason": "relative photon intensity must be positive"}
+        weights.append(intensity * (1.0 + alpha))
+    denominator = math.fsum(weights)
+    if not math.isfinite(denominator) or denominator <= 0:
+        return {"status": "BLOCKED", "reason": "total transition weight is not positive and finite"}
+    mode_fraction = _finite_nonnegative(channel.get("fraction"), "decay mode fraction")
+    results = []
+    for tr, weight in zip(transitions, weights):
+        alpha = float(tr["total_internal_conversion_coefficient"])
+        transition_probability = weight / denominator
+        gamma_conditional = 1.0 / (1.0 + alpha)
+        conversion_conditional = alpha / (1.0 + alpha)
+        results.append({
+            "transition_id": tr["transition_id"],
+            "transition_probability_given_mode": transition_probability,
+            "gamma_probability_given_transition": gamma_conditional,
+            "conversion_probability_given_transition": conversion_conditional,
+            "total_isomer_decay_gamma_probability": mode_fraction * transition_probability * gamma_conditional,
+            "total_isomer_decay_conversion_probability": mode_fraction * transition_probability * conversion_conditional,
+        })
+    return {
+        "status": "DERIVED_CONDITIONAL",
+        "mode": mode,
+        "mode_fraction": mode_fraction,
+        "transition_weight_basis": "relative_photon_intensity_times_one_plus_total_ICC",
+        "transitions": results,
+    }
+
+
 def validate_manifest(doc: dict) -> dict:
     if doc.get("schema_version") != SCHEMA_VERSION:
         raise ValueError(f"schema_version must be {SCHEMA_VERSION}")
@@ -172,10 +229,31 @@ def validate_manifest(doc: dict) -> dict:
             elif channels and channel_total > 1.0 + 1e-6:
                 raise ValueError(f'{rec["level_id"]}: partial decay-channel fractions exceed 1')
 
+            transition_sets = rec.get("transition_sets", [])
+            if not isinstance(transition_sets, list):
+                raise ValueError(f'{rec["level_id"]}: transition_sets must be an array')
+            transition_set_modes = [x.get("mode") for x in transition_sets]
+            if len(transition_set_modes) != len(set(transition_set_modes)):
+                raise ValueError(f'{rec["level_id"]}: duplicate transition-set mode')
+            for transition_set in transition_sets:
+                if transition_set.get("mode") not in channel_ids:
+                    raise ValueError(f'{rec["level_id"]}: transition set has no matching decay channel')
+                if not isinstance(transition_set.get("complete"), bool):
+                    raise ValueError(f'{rec["level_id"]}: transition-set completeness must be explicit')
             transitions = rec.get("observed_transitions", [])
             if not isinstance(transitions, list):
                 raise ValueError(f'{rec["level_id"]}: observed_transitions must be an array')
+            transition_ids = set()
             for tr in transitions:
+                transition_id = tr.get("transition_id")
+                if not transition_id or transition_id in transition_ids:
+                    raise ValueError(f'{rec["level_id"]}: transition IDs must be present and unique')
+                transition_ids.add(transition_id)
+                mode_id = tr.get("decay_mode_id")
+                if mode_id is not None and mode_id not in channel_ids:
+                    raise ValueError(f'{rec["level_id"]}: observed transition has unknown decay_mode_id')
+                if tr.get("source_id") not in source_ids:
+                    raise ValueError(f'{rec["level_id"]}: observed transition has unknown source_id')
                 if tr.get("initial_level_id") != rec["level_id"]:
                     raise ValueError(f'{rec["level_id"]}: transition initial_level_id mismatch')
                 target_id = tr.get("final_level_id")
@@ -204,6 +282,9 @@ def validate_manifest(doc: dict) -> dict:
                     residual = abs(delta_keV - gamma_keV)
                     if residual > max(1e-6, 3.0 * sigma_keV):
                         raise ValueError(f'{rec["level_id"]}: transition energy closure failed ({residual:.6g} keV > 3 sigma)')
+            derived_modes = {}
+            for mode in channel_ids:
+                derived_modes[mode] = derive_mode_conditional_branches(rec, mode)
             status = rec["decision"]
             if status == "PROMPT_INCLUDE":
                 accepted.append(rec["level_id"])
@@ -212,6 +293,7 @@ def validate_manifest(doc: dict) -> dict:
                 "decision": status,
                 "reason": rec.get("decision_reason", ""),
                 "gamma_branch_count": len(branches),
+                "derived_decay_modes": derived_modes,
             })
 
     return {
