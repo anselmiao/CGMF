@@ -90,6 +90,25 @@ class DeterministicCandidateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "lattice mismatch"):
             validate_manifest(doc)
 
+    def test_i132_ensdf_delayed_it_and_uncertain_29kev_line_are_not_prompt_branches(self):
+        root = Path(__file__).resolve().parents[1]
+        manifest = json.loads((root / "research/manifests/targeted-level-candidates-v0.1.json").read_text(encoding="utf-8"))
+        isomer = next(x for x in manifest["levels"] if x["level_id"] == "132I-120keV-isomer")
+        intermediate = next(x for x in manifest["levels"] if x["level_id"] == "132I-22keV-tentative")
+        self.assertEqual(isomer["decision"], "CATALOG_ONLY")
+        self.assertEqual(isomer["decay_channels"][0]["fraction"], 0.14)
+        self.assertEqual(isomer["decay_channels"][1]["fraction"], 0.86)
+        transition = isomer["observed_transitions"][0]
+        self.assertEqual(transition["gamma_energy_keV"], 98.0)
+        self.assertEqual(transition["multipolarity"], "E3")
+        self.assertEqual(transition["total_internal_conversion_coefficient"], 21.6)
+        uncertain = intermediate["observed_transitions"][0]
+        self.assertEqual(uncertain["gamma_energy_keV"], 29.11)
+        self.assertIsNone(uncertain["multipolarity"])
+        self.assertIn("UNCERTAIN", uncertain["evidence_status"])
+        result = validate_manifest(manifest)
+        self.assertEqual(result["decision_report"]["accepted_prompt_level_ids"], [])
+
     def test_starter_manifest_cli_is_deterministic_and_catalog_only(self):
         root = Path(__file__).resolve().parents[1]
         manifest = root / "research/manifests/targeted-level-candidates-v0.1.json"
