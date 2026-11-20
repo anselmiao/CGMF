@@ -195,3 +195,65 @@ If rng_cgm() is uniform on [0,1), the conditional fraction of this interval belo
 The immediate trigger is now localized more precisely: the within-bin perturbation interval straddles the lower-cut threshold, and the archived draw lands below it. The lower-cut bridge is therefore invoked on a statistical 6− state. The bridge rejection remains a separate, deterministic selection-rule consequence given the one-level runtime scheme.
 
 This does **not** establish that the perturbation algorithm is itself erroneous. It may be an intentional bin-sampling plus lower-cut handoff design. The unresolved design question is whether the lower-cut handoff is required to map every below-cut sample to an allowed discrete state, and what the specified behavior should be when no such state exists. Do not clamp the sampled energy to 20 keV or alter the perturbation interval without a model-level decision and controlled validation.
+
+
+## 7. Runtime sampling diagnostic: CI run #44814083648
+
+The opt-in `CGMF_G2_BIN_SAMPLE_DIAGNOSTIC=1` instrumentation was enabled in the Cf-252 SF matrix execution. The archived artifact `cgmf-g2-mixed-history-matrix` (artifact ID `14667583415`) contains the complete `cf252-sf/on/sidecar-on.stdout` log. The I-136 event-6 records independently expose the exact within-bin sample rather than requiring it to be reconstructed from the energy and source formula.
+
+### Exact event-6 sample record
+
+```text
+[G2 BIN SAMPLE] event_id=6 fragment_side=HF Z=53 A=136 k=1
+bin_center_MeV=0.029303252558488514
+Emin_MeV=0.014651626279244257
+Emax_MeV=0.054303252558488516
+u=0.11126663650175375
+E_sample_MeV=0.019063529367160315
+ndisc=1 lower_cut_available=1 E_lower_cut_MeV=0.02
+J_index=6 parity=-1 below_cut=1
+[MC bridge diagnostic] site=lower_cut event_id=6 fragment_side=HF
+Z=53 A=136 initial_energy_MeV=0.019063529367160315
+spin_index=6 initial_spin=6 initial_parity=-1 ndisc=1
+rejected_invalid=0 rejected_energy=0
+rejected_angular_momentum=1 rejected_parity=0 accepted=0
+ERROR: lower-cut transition has no mappable discrete state
+```
+
+The sampled coordinate and energy match the independent interval reconstruction in section 6 to the printed precision. This directly verifies that the selected sample lies below the 0.020-MeV cut. The bridge diagnostic separately verifies that the only candidate was rejected for angular momentum, not energy or parity.
+
+### CI validation
+
+Workflow: [#44814083648](https://github.com/anselmiao/CGMF/actions/runs/44814083648), head commit `a7e9e782cf345074e353b0ee266388485a49c8e9`.
+
+- Configure: passed.
+- C++ build: passed.
+- Native CGMF test suite: passed in this run.
+- G2 three-layer, conditional-history, matched-history, event-state, fragment-state, RNG matrix validator: passed.
+- New diagnostic-filter tests: 3/3 passed.
+- Deterministic targeted level-candidate tests: 17/17 passed.
+- RNG seed matrix: 31 cases, no same-condition overlaps.
+- Complete sidecar matrix: failed at case 1/31 (`cf252-sf`, ZAID 98252, 200 events, seeds 1–200), because the existing I-136 event-6 lower-cut bridge returned exit code 255. Later matrix cases and downstream analyses were not run.
+
+The diagnostic-filter unit tests establish that only explicitly registered diagnostic prefixes are removed from normalized comparison views; original log bytes remain unchanged. The actual matrix run preserves the complete diagnostic output in the artifact.
+
+### Status update
+
+| Claim | Status | Evidence |
+|---|---|---|
+| Event 6 sampled I-136 at 19.0635293672 keV from the recorded interval and RNG coordinate | **COMPUTATION_VERIFIED** | Runtime `[G2 BIN SAMPLE]` record in run #44814083648 |
+| Sample is below the 20-keV lower cut | **COMPUTATION_VERIFIED** | Runtime record reports `below_cut=1`; numeric comparison |
+| The sole discrete candidate was rejected for angular momentum | **COMPUTATION_VERIFIED** | Runtime bridge counters: angular momentum=1, all other rejection counters=0 |
+| Diagnostic instrumentation changed RNG call count or sample coordinate | **NOT INDICATED; not yet independently A/B byte-verified in this run** | Single-draw source inspection; a separate on/off same-seed comparison remains desirable |
+| Full 31-case G2 matrix passes | **BLOCKED / FAILED** | First Cf-252 SF case exits 255; remaining cases skipped |
+
+### Interpretation
+
+The immediate event-level causal chain is now directly observed in one CI execution:
+
+1. The final I-136 continuum bin selected a (6^-) state.
+2. The one within-bin random draw placed its energy at 19.0635293672 keV, below the 20-keV handoff threshold.
+3. The lower-cut bridge was invoked.
+4. With only the 0-keV (1^-) state loaded, the bridge found no angular-momentum-allowed endpoint and terminated the event.
+
+This confirms the trigger and failure mechanism for this archived event. It does **not** establish that the statistical continuum population is physically wrong, that the perturbation algorithm is defective, or that any particular alternative discrete-level file is the correct remedy. Historical preparation provenance remains **BLOCKED**. Do not clamp the energy, add a fabricated transition, or insert the energetically inaccessible 201-keV isomer.
