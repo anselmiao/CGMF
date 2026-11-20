@@ -130,3 +130,23 @@ Run #277 的 matrix artifact 只含第一个 case `cf252-sf/on` 的部分产物�
 - G2 matrix artifact SHA-256: `bdb1cdd13e82c12f51e50a69665ef28b18616c4fdc1bc87d82b647aa4fd651f2`
 - Native regression outputs artifact SHA-256: `34cb1364088befc87f7e315749695a7163ecf5252d529a022b0c50512d6ca9ab`
 - `specmc.cpp` blob SHA: `3c283dff4bfecb821c168301025f7be1f66b614a`
+
+
+## 10. 历史实现对照：严格失败是一次有意的行为变化
+
+进一步核对上游 `lanl/CGMF:master` 与本分支的提交历史后，发现：
+
+- 上游当前 `libcgmf/src/specmc.cpp` 在 lower-cut 和 `mcFindNext()` 两处都先尝试 E1 选择；如果没有 E1 候选，随后会执行注释为 `force transition to the closest-j state` 的 nearest-J fallback。
+- 本分支提交 `0ccd1dab9a0e2a174fb47b3b30d52d8f2d1b7b27`（`fix: unify reachable E1 discrete bridge selection`）将两处选择统一到 `mcSelectE1DiscreteBridge()`，并删除了 nearest-J fallback。这个改动将原先可能强制进入不满足 E1 规则的最近 J 状态，改为只允许真正满足 E1 条件的候选。
+- 后续提交 `9cb0474f6d55b3ac2cfd5ed89df532474580d839`（`fix: fail safely on unmappable cascade states`）增加 unmappable 检查和终止信息；`0dab1a4d77945d628cb462fb0f9abcc91986cb7c` 再增加 fallback index 边界保护。
+- `gamma_transition_selection.h` 已定义 E1、M1、E2 的**选择规则谓词**，并有对应单元测试；但谓词只判断允许/不允许，不提供跃迁强度、分支比或选择多极性的概率模型。生产 bridge 当前只调用 E1。
+
+因此 Run #277 的失败不是 CI 新配置造成，也不应简单回滚成上游 nearest-J fallback。它暴露的是严格 E1-only 桥接条件与当前运行时单能级数据之间的不可达状态。恢复 nearest-J fallback 会重引入已被本分支移除的非 E1 强制转移，违背当前证据治理要求。
+
+**设计决策仍未完成**：是否应保留 fail-closed 的 E1-only bridge，还是构建有真实强度依据的 E1/M1/E2 混合桥接模型。仅有 multipolarity selection-rule predicate 不足以定义抽样概率。
+
+### 新增来源
+- 上游 `lanl/CGMF/libcgmf/src/specmc.cpp`（master blob `d62b498309ac0ec3f46be80a03ff9e1e318db319`）：保留 nearest-J fallback 的旧实现。
+- 本分支 `0ccd1dab`：统一 E1 bridge 并删除 nearest-J fallback。
+- 本分支 `9cb0474`：对不可映射状态 fail-safe 终止。
+- 本分支 `libcgmf/include/gamma_transition_selection.h` blob `13311828472258327914f0830ef9a37d3cae5392`：E1/M1/E2 selection-rule predicates；不含 transition strengths。
