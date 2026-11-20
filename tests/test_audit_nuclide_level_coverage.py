@@ -43,7 +43,7 @@ class ParserTests(unittest.TestCase):
     def test_ripl4_completeness_cutoff_can_exceed_cgmf_ndisc(self):
         ripl_text = "\n".join([
             "136I   136   53   10   33   10   10    3.837363    9.105406",
-            *[f"  {i}   0.000000   1.0 -1   8.34E+01  0" for i in range(1, 11)],
+            *[f"{i:3d}   0.000000   1.0 -1   8.34E+01  0" for i in range(1, 11)],
         ])
         cgmf_text = "\n".join([
             "136I  53136   1",
