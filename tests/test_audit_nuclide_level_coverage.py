@@ -58,7 +58,7 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(rows[0]["CGMF_ground_spin_quantization"], "VALID")
 
     def test_ripl4_preserves_original_spin_info(self):
-        ripl_text = "\\n".join([
+        ripl_text = "\n".join([
             "105Zr  105   40    4    3    1    1    3.811932   14.667000",
             "  1   0.000000   0.5  1  6.700E-01  0                     1/2+#  2 =  1.0000E+02 %B-",
             "  2   0.124000   3.5  1             1                    [7/2+]  0",
