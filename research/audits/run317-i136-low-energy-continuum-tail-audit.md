@@ -339,3 +339,43 @@ The next research action should **not** be to modify the diagnostic or the lower
 Before running CGMF, compare the resulting per-nuclide discrete maxima and continuum mesh cutoffs. Then run both inputs with identical seeds and compare event identity, selected continuum ((E,J,\pi)), lower-cut incidence, bridge acceptance/rejection, and downstream histories. The candidate input must remain isolated from `data/discreteLevels.dat`; no production replacement or physics claim follows from a sensitivity result alone.
 
 The candidate experiment must not insert the 201-keV I-136 isomer as an endpoint for the 19-keV event: it is energetically inaccessible. The experiment is about the completeness/selection policy for the evaluated level scheme and the induced continuum boundary, not a preselected fix for event 6.
+
+
+## 9. Independent lower-cut reachability analyzer (implementation; CI pending)
+
+Added an independent, data-driven analysis utility:
+
+- `tools/analysis/lowerCutReachability.py`
+- `tools/tests/testLowerCutReachability.py`
+- `tools/tests/fixtures/i136-event6-lower-cut.json`
+- CI step: `Run lower-cut discrete-state reachability tests and I-136 event-6 audit`
+
+The analyzer does not alter CGMF sampling, the bridge implementation, or production level data. It consumes an explicit JSON snapshot of discrete levels and continuum samples and reports:
+- energy accessibility of each discrete level at the observed sample;
+- E1/M1/E2 selection-rule eligibility separately;
+- reachability under the current E1-only bridge and an E1+M1+E2 comparison scheme;
+- fraction of the complete bin above the lowest selection-allowed discrete level;
+- fraction of the bin that triggers the lower-cut condition, and the reachable/unreachable fraction within that trigger region.
+
+### 9.1 I-136 event-6 analytic result
+
+The regression fixture contains only the runtime I-136 level directly established in the CI audit: the 0-keV (1^-) ground state. It records the sampled continuum state (E=0.019063529367160315) MeV, (J^pi=6^-), bin interval [0.014651626279244257, 0.054303252558488516] MeV, and lower cut 0.020 MeV. The fixture explicitly states that it is not a complete adopted ENSDF level scheme.
+
+For (6^-\rightarrow1^-), (|\Delta J|=5). Therefore:
+- E1 (rank 1): forbidden by angular-momentum triangle;
+- M1 (rank 1): forbidden by angular-momentum triangle;
+- E2 (rank 2): forbidden by angular-momentum triangle.
+
+Parity alone cannot rescue any of these transitions. Under the known one-level runtime snapshot, no energy in the bin can map to this ground state through E1, M1, or E2. Consequently, the selection-rule reachable fraction is 0 for both tested bridge schemes; adding M1/E2 does not solve this particular event.
+
+The lower-cut-triggering subinterval is [0.014651626279244257, 0.020) MeV. Its width is 0.005348373720755743 MeV, or **13.4884094869%** of the complete bin. The observed 0.019063529367160315-MeV sample lies inside it. The 13.4884% is a geometric interval fraction, not an observed event-failure probability and not a Monte Carlo frequency.
+
+### 9.2 Interpretation boundary and next decision
+
+This narrows the known failure: with the runtime level snapshot, it is not merely that a particular sampled energy falls below the cut. The known discrete endpoint has no E1/M1/E2-allowed connection from the selected (6^-) state at any positive gamma energy.
+
+It does **not** prove that the runtime level scheme is complete, that the continuum population is physically invalid, or that a higher-multipole bridge should be added. A higher-rank transition must not be introduced merely to force event 6 to complete.
+
+The analyzer's implementation and CI wiring are committed, but **the new CI step has not yet been observed running**. Status: `IMPLEMENTED_NOT_CI_VERIFIED`. Do not promote its unit tests or generated report to `COMPUTATION_VERIFIED` until CI executes the step and its artifact/report is inspected.
+
+Next decision after CI validation: construct a provenance-controlled complete level-scheme snapshot for I-136 (including uncertainty and prompt-fission population evidence), then rerun the analyzer across all relevant ((E,J,\pi)) states. Keep catalog/adopted levels distinct from levels actually populated in prompt Cf-252 fission. Only then can we determine whether the current runtime one-level snapshot is incomplete for the physical use case.
