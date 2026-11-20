@@ -42,6 +42,13 @@ add_subdirectory(u235nf-time-events)
 add_subdirectory(pu239nf-start-events)
 
 add_subdirectory(gamma-transition-selection)
+
+add_executable(gamma-transmission-zero-energy-test
+  gamma-transmission-zero-energy.cpp
+  ${CMAKE_SOURCE_DIR}/libcgmf/src/gtrans.cpp)
+target_include_directories(gamma-transmission-zero-energy-test PRIVATE
+  ${CMAKE_SOURCE_DIR}/libcgmf/include)
+add_test(NAME gamma-transmission-zero-energy COMMAND gamma-transmission-zero-energy-test)
 add_subdirectory(mcpoint-status)
 
 add_subdirectory(g2-sidecar-transaction)
