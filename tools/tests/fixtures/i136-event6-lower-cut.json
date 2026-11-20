@@ -1,0 +1,28 @@
+{
+  "schema_version": "cgmf-lower-cut-reachability-v1",
+  "source_metadata": {
+    "description": "CI-observed I-136 event-6 continuum state and runtime discrete-level snapshot",
+    "runtime_discrete_level_file_sha256": "c79679e4247ddf69e3766ccce0b3177fcb7b253e26fd50ff621d2721d023c80e",
+    "limitation": "Only the observed runtime I-136 ground state is included; this fixture is not an adopted ENSDF level scheme."
+  },
+  "discrete_levels": [
+    {
+      "level_id": "I136-runtime-ground-state",
+      "energy_MeV": 0,
+      "spin": "1",
+      "parity": -1
+    }
+  ],
+  "continuum_samples": [
+    {
+      "sample_id": "I136-event6-observed",
+      "nuclide": "I-136",
+      "energy_MeV": 0.019063529367160315,
+      "bin_min_MeV": 0.014651626279244257,
+      "bin_max_MeV": 0.054303252558488516,
+      "spin": "6",
+      "parity": -1,
+      "source": "CI run 44814083648 and repeat run 44815596766"
+    }
+  ]
+}
