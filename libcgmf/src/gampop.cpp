@@ -53,6 +53,19 @@ double specTransitionGamma(Statcalcmode mode, int k0, int p0, int j0,
     double te1 = gdrGammaTransmission(GL,E1_MULTIPOL,eg,E1,a  ,ex );
     double tm1 = gdrGammaTransmission(SL,M1_MULTIPOL,eg,M1,0.0,0.0);
     double te2 = gdrGammaTransmission(SL,E2_MULTIPOL,eg,E2,0.0,0.0);
+    const char *lpopDiagnostic = std::getenv("CGMF_G2_LPOP_WRITE_DIAGNOSTIC");
+    if (lpopDiagnostic && *lpopDiagnostic &&
+        (!std::isfinite(te1) || !std::isfinite(tm1) || !std::isfinite(te2))) {
+      std::cerr << std::setprecision(17)
+                << "[G2 NONFINITE GAMMA TRANSMISSION] Z=" << n->za.getZ()
+                << " A=" << n->za.getA() << " mode=" << static_cast<int>(mode)
+                << " k=" << k0 << " level_index=" << i
+                << " parent_excitation=" << n->excitation[k0]
+                << " level_energy=" << n->lev[i].energy
+                << " eg=" << eg << " ex=" << ex << " a=" << a
+                << " te1=" << te1 << " tm1=" << tm1 << " te2=" << te2
+                << std::endl;
+    }
 
     x   = specTc2d(mode,-1,i,p0,j0,E1_MULTIPOL,te1,q,n);
     x  += specTc2d(mode, 1,i,p0,j0,M1_MULTIPOL,tm1,q,n);
