@@ -7,7 +7,7 @@
 
 ## 1. Decision
 
-The historical baseline A remains frozen by repository blob identity and by the run-time path/digest recorded in the Actions #333 audit. Reconstructing its exact bytes is not a prerequisite for B: the available CGMF documentation says missing spin/parity assignments were filled using a systematics procedure, and the original preparation notebook / random seed are not present in the inspected repository trees.
+The historical baseline A remains frozen by repository blob identity and by the run-time path/digest recorded in the Actions #333 audit. Reconstructing its exact bytes is not a prerequisite for B: the CGMF 1.1.0 manual explicitly says missing parities are chosen randomly under an equal-parity assumption, and a later CGMF/BeoH report describes random sampling of missing spins/parities and additional levels. The original preparation notebook / random seed are not present in the inspected repository trees. Thus there is no uniquely defined historical output to reproduce from the surviving inputs alone.
 
 B is a distinct, reproducible dataset candidate. It must never overwrite A, and its generator must not infer missing (J^\pi), gamma branches, multipolarities, or conversion coefficients.
 
@@ -35,7 +35,7 @@ The ENSDF adopted-level evaluation (April 2018; NDS 152, 331 (2018)) lists:
 - 86.73(7) keV, ((2^-,1^-,0^-)), 0.4 ns;
 - 201(26) keV, ((6^-)), 46.6(11) s, XREF D only (248Cm SF), not XREF C (252Cf SF).
 
-The RIPL-3 file in this repository lists the corresponding 6− isomer at 640 keV with half-life 46.9 s and 100% beta decay. This is strong evidence of a serious energy disagreement for the same long-lived 6− isomer, but the exact correction policy must cite the adopted ENSDF record and preserve its uncertainty. Do not describe 640 keV as a verified 201-keV state value; record it as the RIPL-3 value that conflicts with ENSDF.
+The RIPL-3 file in this repository lists a 6− level at 640 keV with half-life 46.9 s and 100% beta decay. Its matching spin and near-identical half-life make it a strong candidate for the same long-lived isomer, but identity should be recorded as a source reconciliation, not assumed from those two fields alone. The energy is in serious conflict with ENSDF's 201(26) keV. Preserve both source values and the ENSDF uncertainty; do not overwrite the RIPL value silently.
 
 The current prepared CGMF file contains only the 0-keV (1^-) I-136 state. Actions #333 confirmed that this was the file actually opened and captured its SHA-256.
 
@@ -49,7 +49,7 @@ The current repository objects are unchanged from the pinned CGMF 1.1.0 data obj
 
 These are Git blob identities, not SHA-256 file digests. The actual Actions #333 opened file SHA-256 is recorded separately in `actions-333-runtime-i136-bridge-failure-audit.md`.
 
-The CGMF prepared file itself states that it was generated from evaluated RIPL-3 discrete levels and that missing spin/parity assignments were filled according to the CGMF manual's systematics rules. The inspected `ripl2levels.cpp` confirms that the `DEVUTIL` RIPL reader selects `Nmax` under `reassign`, and that its fallback can assign missing spin/parity using simple systematics. It is not evidence that the missing historical notebook or exact random seed has been recovered.
+The CGMF prepared file itself states that it was generated from evaluated RIPL-3 discrete levels and that missing spin/parity assignments were filled according to the CGMF manual's systematics rules. The inspected `ripl2levels.cpp` confirms that the `DEVUTIL` RIPL reader selects `Nmax` under `reassign`, and that its fallback can assign missing spin/parity using simple systematics. This source routine is not evidence that the missing historical notebook or exact random seed has been recovered.
 
 ## 3. Why byte reproduction of A is not a B gate
 
@@ -103,6 +103,8 @@ The builder must consume a hand-reviewed manifest, not scrape and auto-accept al
 - ENSDF I-132 Adopted Levels, Gammas (NDS 104, 497 (2005), PDF): https://www.nndc.bnl.gov/ensnds/132/I/adopted.pdf
 - ENSDF I-136 46.6-s isomer decay dataset: https://www.nndc.bnl.gov/nudat3/getdecaydataset.jsp?dsid=136i+bM+decay+%2846.6+s%29&nucleus=136XE
 - IAEA RIPL-3 resource description: https://nucleus.iaea.org/Pages/ripl-3.aspx
+- CGMF 1.1.0 User Manual, §1.3.7 "Fixing the level scheme" and §1.3.8 "Isomeric States": https://cgmf.readthedocs.io/_/downloads/en/latest/pdf/
+- CGMF/BeoH report discussing stochastic missing-level and spin/parity sampling: https://www.osti.gov/servlets/purl/1878094
 
 ## 7. Status ledger
 
@@ -112,6 +114,7 @@ The builder must consume a hand-reviewed manifest, not scrape and auto-accept al
 | A run-time opened path and byte SHA-256 | `COMPUTATION_VERIFIED` | Actions #333 audit |
 | I-132 120-keV (8^-) isomer and IT fraction | `SOURCE_VERIFIED` | ENSDF adopted evaluation |
 | I-132 22-keV intermediate exact energy/Jπ | `SOURCE_VERIFIED` with tentative assignment | ENSDF marks it 22?(11), (5+) |
+| I-132 isomer's beta/IT competition in legacy CGMF prompt scheme | `BLOCKED` | Legacy level format has no explicit beta-branch field; modeling semantics need resolution |
 | I-136 201(26)-keV (6^-) isomer | `SOURCE_VERIFIED` | ENSDF adopted evaluation |
 | RIPL I-136 640-keV (6^-) entry | `SOURCE_VERIFIED` | Repository RIPL-3 record |
 | RIPL I-136 energy is inconsistent with ENSDF | `SOURCE_VERIFIED` | 640 keV vs 201(26) keV, similar half-life |
