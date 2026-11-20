@@ -142,3 +142,56 @@ This run establishes the immediate event-level mechanism:
 This upgrades the existence and identity of the event-6 continuum population from a source-chain hypothesis to **COMPUTATION_VERIFIED for this archived CI run**. It does not establish why the current data policy leaves only one discrete level, nor does it prove that adding a particular evaluated level is the correct remedy. The historical level-file generation lineage remains **BLOCKED**. The event-level chain also does not justify adding an M5 bridge or changing the physical transition model: such a change would be a separate physics-model proposal requiring independent evidence and validation.
 
 **Reproducibility scope:** this trace is from the archived CI artifact for run #44808780129, the 200-event Cf-252 SF sidecar-on case with the existing configured seed range. It is not a newly rerun experiment.
+
+
+## 6. Event-6 within-bin perturbation interval reconstruction
+
+The archived log records, for the final I-136 continuum step:
+
+- selected bin index: k=1;
+- bin-centre energy: 0.0293032525585 MeV;
+- previous-bin centre: 0.0793032525585 MeV (the parent energy printed at the next population call);
+- final mesh entry: 0 MeV;
+- sampled energy after perturbation: 0.019063529367160315 MeV;
+- lower-cut threshold: 0.020 MeV.
+
+The source in specmc.cpp constructs the perturbation interval as:
+
+```cpp
+emax = (excitation[k-1] + excitation[k]) * 0.5;
+emin = (excitation[k+1] + excitation[k]) * 0.5;
+if (emin < highest_discrete_level_energy)
+    emin = highest_discrete_level_energy;
+ex = emin + (emax-emin)*rng_cgm();
+```
+
+For this event, ndisc=1 and the highest discrete level is the 0-MeV ground state. With k=1 and the final mesh entry at zero, the reconstructed interval is:
+
+- emax = (0.0793032525585 + 0.0293032525585)/2 = 0.0543032525585 MeV;
+- emin = (0 + 0.0293032525585)/2 = 0.01465162627925 MeV.
+
+The observed sample therefore corresponds to the normalized within-bin coordinate:
+
+```
+u = (0.019063529367160315 - 0.01465162627925)
+    / (0.0543032525585 - 0.01465162627925)
+  = 0.1112666365
+```
+
+The lower-cut threshold 0.020 MeV lies inside this interval. Its normalized position is:
+
+```
+u_cut = (0.020 - 0.01465162627925)
+        / (0.0543032525585 - 0.01465162627925)
+      = 0.1348840949
+```
+
+Thus the sampled coordinate is below the threshold coordinate, so this draw enters the lower-cut bridge. The interval itself extends about 5.35 keV below the threshold. This is not a fixed 10.24-keV perturbation: 10.24 keV is only the observed difference between the selected bin centre and this particular sampled energy.
+
+If rng_cgm() is uniform on [0,1), the conditional fraction of this interval below the lower cut is approximately 13.49%. This is a conditional geometric fraction for this one bin, not an empirical failure probability across events; the RNG distribution implementation and population of comparable bins must be checked before using it as a statistical rate.
+
+### Consequence
+
+The immediate trigger is now localized more precisely: the within-bin perturbation interval straddles the lower-cut threshold, and the archived draw lands below it. The lower-cut bridge is therefore invoked on a statistical 6− state. The bridge rejection remains a separate, deterministic selection-rule consequence given the one-level runtime scheme.
+
+This does **not** establish that the perturbation algorithm is itself erroneous. It may be an intentional bin-sampling plus lower-cut handoff design. The unresolved design question is whether the lower-cut handoff is required to map every below-cut sample to an allowed discrete state, and what the specified behavior should be when no such state exists. Do not clamp the sampled energy to 20 keV or alter the perturbation interval without a model-level decision and controlled validation.
