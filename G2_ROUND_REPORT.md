@@ -1425,3 +1425,18 @@ Run 页面：https://github.com/anselmiao/CGMF/actions/runs/44614976464
 同时将运行时数据审计目标从 ZAID 35089、53132 扩展为增加 53136（¹³⁶I），用于在下一次 CI 运行时直接打印该核素的离散能级数及每条能级的能量、J、宇称。该改动仅增加诊断输出，不修改核数据、物理选择规则、级联逻辑或 golden。
 
 当前基线 Run #236 已确认：Build、原生 CTest 和前置合成测试通过；G2 sidecar matrix 在 Cf-252 自发裂变 case 的 event 6 因 ¹³⁶I lower-cut 离散态无法映射而中止。原始失败 artifact 只含 event 1–5，不能作为完整矩阵数据。
+
+
+
+## Run #123：Run #237/#238 的 ¹³⁶I E1 桥接根因与 ENSDF 对照（COMPUTATION_VERIFIED / SOURCE_VERIFIED）
+
+独立审计记录：[Run #237/#238 ¹³⁶I discrete-bridge audit](research/audits/cgmf-run237-238-136I-discrete-bridge-audit.md)。
+
+关键新结果：
+- Run #237（push）与 #238（PR）均完成但失败；Configure、Build、合成分析测试、RNG validator 均通过；真实 G2 sidecar matrix 在第一个 Cf-252 case 失败，后续分析被跳过。
+- 运行时读到 ¹³⁶I 唯一离散态为 0 MeV、Jπ=1⁻。NNDC ENSDF 2018 年 A=136 评价确认基态为 (1⁻)，第一激发态为 86.73 keV；本次失败事件初始能量约 79.30 keV，故该第一激发态高于事件能量，不能作为候选。
+- `specmc.cpp::mcSelectE1DiscreteBridge` 对离散桥接硬编码 E1 选择条件。事件初态为 Jπ=7⁺，唯一可达候选为 1⁻ 基态，ΔJ=6，因此被 E1 角动量条件拒绝。诊断计数为 energyRejected=0、spinRejected=1、parityRejected=0。
+- 这将失败定位到 E1-only bridge 与当前低能高自旋 continuum 状态之间的不兼容；尚不能据此断言应扩展到 E2/M6，也不能直接放宽选择规则。下一步先审计生产级联中多极性与强度的实际采样，以及低能 continuum 的 Jπ population。
+- Run #238 native regression 日志还出现 ¹⁰⁵Nb、⁹⁶Y、¹³⁷I、¹⁰⁵Zr、¹³⁸Te 等多个核素的相似不可映射失败；不是单一 ¹³⁶I 数据问题。不得改写 golden、跳过失败事件或用部分 histories 做 P/H/O 推断。
+
+本轮没有修改生产物理规则、数据库、golden 或事件矩阵；只增加诊断审计报告。
