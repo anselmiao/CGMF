@@ -1,14 +1,25 @@
 name: CGMF G2 Build
 # G2 regression workflow: event IDs are per-run; RNG seeds are tracked separately.
+#
+# CI policy:
+# - Pull requests targeting the G2 integration branches receive one authoritative run.
+# - Direct pushes do not create a duplicate run alongside pull_request synchronize.
+# - workflow_dispatch remains available for deliberate standalone reruns.
+# - No path filter is used: GitHub can leave required PR checks pending when a workflow
+#   is skipped by path filters, so correctness of merge gating takes priority over
+#   suppressing documentation-only PR runs.
 
 on:
-  push:
+  pull_request:
     branches:
       - qi/g2-neutron-transition-history
       - qi/g2-unified-history-v1
       - qi/fix-discrete-start-index
-  pull_request:
   workflow_dispatch:
+
+concurrency:
+  group: cgmf-g2-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
