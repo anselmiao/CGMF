@@ -19,6 +19,7 @@ class LowerCutReachabilityTests(unittest.TestCase):
                 "energy_MeV": 0.019063529367160315,
                 "bin_min_MeV": 0.014651626279244257,
                 "bin_max_MeV": 0.054303252558488516,
+                "lower_cut_MeV": 0.02,
                 "spin": "6",
                 "parity": -1,
             }],
@@ -28,6 +29,14 @@ class LowerCutReachabilityTests(unittest.TestCase):
         self.assertFalse(result["schemes"]["current_E1_only"]["reachable_at_sample"])
         self.assertFalse(result["schemes"]["comparison_E1_M1_E2"]["reachable_at_sample"])
         self.assertEqual(result["schemes"]["comparison_E1_M1_E2"]["reachable_bin_fraction"], 0.0)
+        self.assertAlmostEqual(
+            result["schemes"]["current_E1_only"]["lower_cut_trigger_fraction_of_bin"],
+            0.1348840949, places=8
+        )
+        self.assertEqual(
+            result["schemes"]["comparison_E1_M1_E2"]["unreachable_fraction_within_lower_cut_region"],
+            1.0
+        )
 
     def test_e1_parity_and_delta_j(self):
         initial = {"spin": "2", "parity": -1}
