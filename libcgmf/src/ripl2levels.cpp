@@ -307,14 +307,58 @@ void getRiplDiscreteLevels (Nucleus *ncl, int nemit) {
 		if (zaidIndex[id]==zaid) found=true;
 	}
 
+	const bool levelLookupDiagnostic =
+		(getenv("CGMF_G2_LEVEL_LOOKUP_DIAGNOSTIC") != NULL);
+	const int auditedZAIDs[] = {
+		35089, 37096, 39096, 40105, 41105, 52138,
+		53132, 53136, 53137
+	};
+
 	for (int k=0; k<=nemit; k++) {
 		found = false;
-		if (zaidIndex[id-k]==zaid-k) found = true;
-		ncl[k].ndisc = numberLevels[id-k];
+		const int expectedZAID = zaid-k;
+		const int positionalIndex = id-k;
+		const bool positionalIndexValid =
+			(positionalIndex >= 0 && positionalIndex < NUM_NUCLEI);
+		const int positionalZAID =
+			positionalIndexValid ? zaidIndex[positionalIndex] : -1;
+		const int positionalNdisc =
+			positionalIndexValid ? numberLevels[positionalIndex] : -1;
+		int exactIndex = -1;
+		for (int entry=0; entry<NUM_NUCLEI; ++entry) {
+			if (zaidIndex[entry] == expectedZAID) {
+				exactIndex = entry;
+				break;
+			}
+		}
+		const bool audited = std::find(
+			auditedZAIDs, auditedZAIDs + sizeof(auditedZAIDs)/sizeof(auditedZAIDs[0]),
+			expectedZAID) != auditedZAIDs + sizeof(auditedZAIDs)/sizeof(auditedZAIDs[0]);
+		if (levelLookupDiagnostic && audited) {
+			std::cerr << "[CGMF G2 LEVEL LOOKUP] parent_ZAID=" << zaid
+				<< " daughter_offset=" << k
+				<< " expected_ZAID=" << expectedZAID
+				<< " positional_index=" << positionalIndex
+				<< " positional_ZAID=" << positionalZAID
+				<< " positional_ndisc=" << positionalNdisc
+				<< " exact_index=" << exactIndex
+				<< " exact_ndisc=" << (exactIndex >= 0 ? numberLevels[exactIndex] : -1)
+				<< std::endl;
+		}
+		if (positionalIndexValid && positionalZAID == expectedZAID) found = true;
+		ncl[k].ndisc = numberLevels[positionalIndex];
 		for (int i=0; i<ncl[k].ndisc; i++) {
-			ncl[k].lev[i] = allLevels[id-k][i];
+			ncl[k].lev[i] = allLevels[positionalIndex][i];
 		}
 		fixLevels (&ncl[k], found, ml);
+		if (levelLookupDiagnostic && audited) {
+			std::cerr << "[CGMF G2 LEVEL LOOKUP RESULT] expected_ZAID=" << expectedZAID
+				<< " found_by_position=" << found
+				<< " resulting_ndisc=" << ncl[k].ndisc
+				<< " resulting_ground_spin=" << (ncl[k].ndisc > 0 ? ncl[k].lev[0].spin : -1.0)
+				<< " resulting_ground_parity=" << (ncl[k].ndisc > 0 ? ncl[k].lev[0].parity : 0)
+				<< std::endl;
+		}
 	}
 
 	return;
