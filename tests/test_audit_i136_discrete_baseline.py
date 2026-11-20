@@ -21,7 +21,7 @@ class I136BaselineAuditTests(unittest.TestCase):
         line, counts, levels = find_ripl_i136([header] + levels_input)
         self.assertEqual(line, 1)
         self.assertEqual(counts, {"Nol": 11, "Nog": 19, "Nmax": 1, "Nc": 1})
-        self.assertEqual(len(levels), 1)
+        self.assertEqual(len(levels), 11)
         self.assertEqual(levels[0]["evaluated_Jpi_text"], "(1-)")
 
     def test_cgmf_i136_level_count_and_fields(self):
@@ -51,12 +51,13 @@ class I136BaselineAuditTests(unittest.TestCase):
                 "136I  53136   1\n 0.000000   1.0 -1  8.34000e+01  0\n",
                 encoding="utf-8",
             )
+            ripl_levels = [f"{i:3d}   {0.1 * (i - 1):0.6f}   1.0 -1   8.34E+01  0" for i in range(1, 12)]
+            ripl_levels[0] = ripl_levels[0].ljust(46) + "(1-)"
             ripl.write_text(
-                "136I   136   53   11   19    1    1    3.780000    8.960000\n"
-                "  1   0.000000   1.0 -1   8.34E+01  0                      (1-)\n",
+                "136I   136   53   11   19    1    1    3.780000    8.960000\\n"
+                + "\\n".join(ripl_levels) + "\\n",
                 encoding="utf-8",
-            )
-            report = build_report(cgmf, ripl)
+            )            report = build_report(cgmf, ripl)
         self.assertEqual(report["records"]["CGMF"]["ndisc"], 1)
         self.assertEqual(report["records"]["RIPL3"]["counts"]["Nmax"], 1)
         self.assertTrue(report["checks"]["CGMF_ground_state_matches_RIPL_first_level"])
