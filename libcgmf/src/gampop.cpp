@@ -122,8 +122,31 @@ double specTc2d(Statcalcmode mode, int pg, int i, int p0, int j0, int l,
 
   if(n->lev[i].spin >=s1min && n->lev[i].spin<=s1max){
     if(pg == p0*n->lev[i].parity){
+      const char *lpopDiagnostic = std::getenv("CGMF_G2_LPOP_WRITE_DIAGNOSTIC");
+      if (lpopDiagnostic && *lpopDiagnostic &&
+          (!std::isfinite(tg) || !std::isfinite(q))) {
+        std::cerr << std::setprecision(17)
+                  << "[G2 NONFINITE DISCRETE TRANSITION INPUT] Z=" << n->za.getZ()
+                  << " A=" << n->za.getA() << " mode=" << static_cast<int>(mode)
+                  << " k0=" << k0 << " level_index=" << i
+                  << " parent_spin2=" << j0 << " parent_parity=" << p0
+                  << " multipolarity=" << l << " tg=" << tg << " q=" << q
+                  << " level_energy=" << n->lev[i].energy
+                  << std::endl;
+      }
       if(mode == hauser){
+        const double lpopBefore = n->lpop[i];
         n->lpop[i] += (x1=tg*q);
+        if (lpopDiagnostic && *lpopDiagnostic &&
+            (!std::isfinite(x1) || !std::isfinite(n->lpop[i]))) {
+          std::cerr << std::setprecision(17)
+                    << "[G2 NONFINITE LPOP WRITE] Z=" << n->za.getZ()
+                    << " A=" << n->za.getA() << " level_index=" << i
+                    << " mode=" << static_cast<int>(mode)
+                    << " lpop_before=" << lpopBefore
+                    << " tg=" << tg << " q=" << q << " increment=" << x1
+                    << " lpop_after=" << n->lpop[i] << std::endl;
+        }
       }
       if(mode==sumall) sum += tg;
       else if(mode == hauser) sum += x1;
