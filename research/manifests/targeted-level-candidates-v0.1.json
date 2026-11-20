@@ -1,0 +1,91 @@
+{
+  "schema_version": "cgmf-targeted-level-candidate-v0.1",
+  "description": "Initial source-audited catalog entries for targeted B. Catalog-only records; no production prompt-gamma additions are authorized.",
+  "sources": [
+    {
+      "source_id": "ENSDF-I132",
+      "reference": "https://www.nndc.bnl.gov/ensnds/132/I/adopted.pdf",
+      "version": "NDS 104, 497 (2005); adopted evaluation"
+    },
+    {
+      "source_id": "ENSDF-I136",
+      "reference": "https://www.nndc.bnl.gov/ensdf/getadopted.jsp?nuc=136I",
+      "version": "NDS 152, 331 (2018); adopted evaluation"
+    },
+    {
+      "source_id": "RIPL3-I136",
+      "reference": "https://nucleus.iaea.org/Pages/ripl-3.aspx",
+      "version": "repository data/ripl3-levels.dat; RIPL-3"
+    }
+  ],
+  "levels": [
+    {
+      "level_id": "132I-22keV-tentative",
+      "zaid": 53132,
+      "Z": 53,
+      "A": 132,
+      "energy_MeV": 0.022,
+      "energy_uncertainty_MeV": 0.011,
+      "spin": null,
+      "parity": null,
+      "jpi_status": "TENTATIVE",
+      "half_life_s": null,
+      "source_id": "ENSDF-I132",
+      "decision": "CATALOG_ONLY",
+      "decision_reason": "ENSDF energy and (5+) assignment are tentative; retain uncertainty; not an accepted prompt state",
+      "competing_decay": "UNKNOWN",
+      "gamma_branches": []
+    },
+    {
+      "level_id": "132I-120keV-isomer",
+      "zaid": 53132,
+      "Z": 53,
+      "A": 132,
+      "energy_MeV": 0.12,
+      "energy_uncertainty_MeV": 0.02,
+      "spin": "8",
+      "parity": -1,
+      "jpi_status": "TENTATIVE",
+      "half_life_s": 4993,
+      "source_id": "ENSDF-I132",
+      "decision": "CATALOG_ONLY",
+      "decision_reason": "ENSDF adopted evaluation reports (8-) isomer with 14(2)% beta and 86(2)% IT; source cross-reference is isomeric-transition decay, not direct 252Cf SF population",
+      "competing_decay": "BETA_AND_IT",
+      "gamma_branches": []
+    },
+    {
+      "level_id": "136I-201keV-isomer",
+      "zaid": 53136,
+      "Z": 53,
+      "A": 136,
+      "energy_MeV": 0.201,
+      "energy_uncertainty_MeV": 0.026,
+      "spin": "6",
+      "parity": -1,
+      "jpi_status": "TENTATIVE",
+      "half_life_s": 46.6,
+      "source_id": "ENSDF-I136",
+      "decision": "CATALOG_ONLY",
+      "decision_reason": "ENSDF 201(26) keV (6-) isomer; above event-6 19.06 keV excitation and XREF D rather than C; cannot resolve event 6",
+      "competing_decay": "BETA",
+      "gamma_branches": []
+    },
+    {
+      "level_id": "136I-RIPL3-640keV-conflict",
+      "zaid": 53136,
+      "Z": 53,
+      "A": 136,
+      "energy_MeV": 0.64,
+      "energy_uncertainty_MeV": 0,
+      "spin": "6",
+      "parity": -1,
+      "jpi_status": "TENTATIVE",
+      "half_life_s": 46.9,
+      "source_id": "RIPL3-I136",
+      "decision": "CATALOG_ONLY",
+      "decision_reason": "Retained as source-conflict record only; possible same-isomer identity is not established by this manifest",
+      "competing_decay": "BETA",
+      "gamma_branches": []
+    }
+  ]
+}
