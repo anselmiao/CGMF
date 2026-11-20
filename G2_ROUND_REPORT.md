@@ -1682,3 +1682,22 @@ G2 是核裂变统计模型与事件历史数据接口。即使获得稳定的�
 ### 补充：`ndisc=1` 的 reader 来源定位
 
 对 `libcgmf/src/ripl2levels.cpp` 的生产 reader 做了进一步检查：核素记录头部的 `nol` 被写入 `numberLevels`，`getDiscreteLevels()` 随后直接将该值赋给运行时 `ncl[k].ndisc` 并复制对应条目。因此本轮的 `ndisc=1` 不是该 reader 在运行时把多条能级裁剪成一条；专用 `discreteLevels.dat` 对应核素记录头的 level count 就是 1。RIPL 原始数据是否有更多能级、在哪个预处理环节丢失，仍 **BLOCKED**。
+
+
+## Run #281：g2-fix-discrete-handoff.zip 移植前审计
+
+独立报告：[g2-fix-discrete-handoff-review-run281.md](research/audits/g2-fix-discrete-handoff-review-run281.md)。
+
+本轮审核 ZIP 内 11 个文件：实施计划、README、3 个 C++ patch、4 个 Python 脚本和 2 个 CSV。审核时分支 HEAD 为 `ca7763f2`，包声明基线为 `1562f01`。三个 patch 涉及的四个既有 C++ 源文件 blob 与 patch 基线 blob 一致，具备继续做真实 `git apply --check` 的条件；但本轮未声称已 apply-check、编译或运行。
+
+### 关键发现
+
+- 89Br 两个 CSV 冲突：correction 表给出 5/2−，public reference 表给出 3/2−。NNDC 当前 ENSDF adopted 页面列为 `(5/2−)`，并注明赋值依据为 shell-model 预测和 Br 同位素结构类比；3/2− public CSV 不接受为已核实参考值，5/2− 的括号和来源限制必须保留。
+- N1–N4 分类器存在 even-even 未检查正宇称、浮点自旋整数判断、N1/N4 重复、N2 不保留来源置信度、N3 的 `nol/nmax/nc` 语义未核实、硬编码路径和静默解析失败等问题。
+- E1–E4 事件脚本目前只做 LF/HF 配对和核素等级映射；没有实现 bridge status 与 E4 字段完整性，并且按 event_id 分组、重复 side 静默覆盖。
+- Patch A 的 skip log 使用局部 `i+1`，没有记录实际 RNG seed、global event index、run id 和 fragment side；只清理 `g2PendingEvent` 的完整事务隔离仍需测试。
+- Patch B 仅可作为 opt-in continuum-floor 对照，不是已验证物理修复；Patch C 必须有来源分级、冲突检测和输入校验。
+
+### 执行边界
+
+本轮只提交审计文档，不修改生产 C++、核数据、随机种子、golden 或物理选择规则。14 个其他 Jπ 候选、527 个截断核素、全库准入汇总继续为 REPORTED_UNVERIFIED。Patch A/B/C 尚未合并；P/H/O 和气论映射不升级。
