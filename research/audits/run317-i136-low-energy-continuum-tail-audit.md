@@ -361,6 +361,8 @@ The analyzer does not alter CGMF sampling, the bridge implementation, or product
 
 The regression fixture contains only the runtime I-136 level directly established in the CI audit: the 0-keV (1^-) ground state. It records the sampled continuum state (E=0.019063529367160315) MeV, (J^pi=6^-), bin interval [0.014651626279244257, 0.054303252558488516] MeV, and lower cut 0.020 MeV. The fixture explicitly states that it is not a complete adopted ENSDF level scheme.
 
+A subsequent source check against the ENSDF adopted I-136 evaluation (April 2018) adds important context. ENSDF lists an 86.73(7)-keV level with (J^\pi=(2^-,1^-,0^-)), XREF ABCD (including 252Cf SF), and a 0.4-ns half-life. It also lists a 201(26)-keV (6^-), 46.6-s isomer with XREF D only (248Cm SF); this is not evidence of population in 252Cf SF. The fixture now includes these adopted levels as comparison endpoints, with the 86.73-keV spin alternatives represented separately and the 201-keV source limitation explicit. Neither can be a downward endpoint for the observed 19.06-keV continuum sample because both lie above its energy. The runtime table's one-level state and the adopted evaluated level scheme are therefore distinct objects; the adopted scheme must not be silently substituted for the actual run input.
+
 For (6^-\rightarrow1^-), (|\Delta J|=5). Therefore:
 - E1 (rank 1): forbidden by angular-momentum triangle;
 - M1 (rank 1): forbidden by angular-momentum triangle;
