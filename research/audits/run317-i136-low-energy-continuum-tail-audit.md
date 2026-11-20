@@ -95,3 +95,50 @@ NNDC ENSDF, I-136 Adopted Levels, Gammas, evaluation cutoff 2018-04-01:
 https://www.nndc.bnl.gov/ensdf/getadopted.jsp?nuc=136I
 
 The 201-keV (6^-) state is listed with XREF D (248Cm SF), not XREF C (252Cf SF). This matters for claims about direct observation/population in the specific Cf-252 dataset: the adopted existence of the level is not evidence that the particular Run #317 Cf-252 event populated it.
+
+
+## 5. Archived CI event-6 population trace (Run #44808780129)
+
+The opt-in diagnostic CGMF_G2_POPULATION_DIAGNOSTIC=1 was already enabled by tools/tests/runG2SidecarMatrix.py for the sidecar-on execution. The diagnostic was present in the uploaded artifact; it had not been inspected in the earlier review. The archived cf252-sf/on/sidecar-on.stdout now provides a direct trace for event 6.
+
+### Exact HF trace
+
+| Stage | Energy (MeV) | Jπ | Runtime state |
+|---|---:|---:|---|
+| I-137 parent | 8.52815597778 | 11.5− | continuum |
+| First I-136 daughter | 2.521994448 | 9− | continuum, daughter index 20 |
+| I-136 next daughter | 0.875232221939 | 8+ | continuum, daughter index 33 |
+| I-136 next daughter | 0.205738886944 | 7− | continuum, daughter index 13 |
+| I-136 next daughter | 0.0584223516066 | 7+ | continuum, daughter index 3 |
+| I-136 selected daughter before within-bin perturbation | 0.0293032525585 | 6− | continuum, daughter index 1 |
+| I-136 bridge input after within-bin perturbation | 0.019063529367160315 | 6− | bridge rejects; ndisc=1 |
+
+The last continuum-bin population (k=1, energy 0.0293032525585 MeV) is normalized to 1 (within printed precision). Its spin/parity decomposition is:
+
+| Jπ | Population |
+|---|---:|
+| 5+ | 0.00312825546833 |
+| 6+ | 0.0031671744242 |
+| **6−** | **0.719998224252** |
+| 7+ | 0.000961649692116 |
+| **7−** | **0.218613179428** |
+| 8+ | 0.000236996847355 |
+| **8−** | **0.0538768272265** |
+| 9+ | 0.0000176926628 |
+
+The selected 6− daughter is therefore not an unexplained isolated state: it is sampled from the dominant 6− component of the final I-136 continuum bin. Its preceding transition from 7+ to 6− satisfies the E1 selection rules (ΔJ=1, parity changes). The selected bin energy is then perturbed downward by approximately 0.0102397231913 MeV, to 0.0190635293672 MeV, crossing below the 0.020-MeV lower-cut threshold while preserving Jπ.
+
+At the bridge, the only runtime discrete state is the 0-keV 1− ground state. The bridge rejects it solely on angular momentum: rejected_angular_momentum=1; energy and parity are not the rejection causes. The 6− to 1− spin difference is 5, outside the E1 bridge's allowed |ΔJ|≤1 range (with the usual triangle condition).
+
+### Updated interpretation
+
+This run establishes the immediate event-level mechanism:
+
+1. the low-energy continuum bin contains a dominant 6− statistical population;
+2. Monte Carlo selects that 6− continuum state through an E1-allowed 7+ → 6− step;
+3. within-bin energy perturbation moves the selected state below the lower cut;
+4. the E1-only continuum-to-discrete bridge cannot connect 6− to the sole 1− ground state.
+
+This upgrades the existence and identity of the event-6 continuum population from a source-chain hypothesis to **COMPUTATION_VERIFIED for this archived CI run**. It does not establish why the current data policy leaves only one discrete level, nor does it prove that adding a particular evaluated level is the correct remedy. The historical level-file generation lineage remains **BLOCKED**. The event-level chain also does not justify adding an M5 bridge or changing the physical transition model: such a change would be a separate physics-model proposal requiring independent evidence and validation.
+
+**Reproducibility scope:** this trace is from the archived CI artifact for run #44808780129, the 200-event Cf-252 SF sidecar-on case with the existing configured seed range. It is not a newly rerun experiment.
