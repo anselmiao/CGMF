@@ -74,7 +74,12 @@ def derive_mode_conditional_branches(level: dict, mode: str) -> dict:
     transition_set = sets.get(mode)
     if not transition_set or transition_set.get("complete") is not True:
         return {"status": "BLOCKED", "reason": "transition inventory for decay mode is not certified complete"}
+    if transition_set.get("intensity_basis") != "relative_photon_intensity_within_decay_mode":
+        return {"status": "BLOCKED", "reason": "transition intensity basis is not explicit"}
     transitions = [x for x in level.get("observed_transitions", []) if x.get("decay_mode_id") == mode]
+    dataset_source = transition_set.get("source_id")
+    if not dataset_source or any(x.get("source_id") != dataset_source for x in transitions):
+        return {"status": "BLOCKED", "reason": "transition records do not share the declared source dataset"}
     if not transitions:
         return {"status": "BLOCKED", "reason": "no observed transitions for decay mode"}
     weights = []
@@ -111,6 +116,7 @@ def derive_mode_conditional_branches(level: dict, mode: str) -> dict:
         "mode": mode,
         "mode_fraction": mode_fraction,
         "transition_weight_basis": "relative_photon_intensity_times_one_plus_total_ICC",
+        "uncertainty_propagated": False,
         "transitions": results,
     }
 
