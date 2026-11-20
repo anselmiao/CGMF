@@ -521,10 +521,65 @@ void mcHistoryLoop(MCPoint minit, Pdata *pdt, double **spc)
     /*** calculate Hauser-Feshbach decay */
     if(EVAPORATION_SPECTRUM) specEvaporationBin(c0,pdt,spc);
     else                     spectraBinary(c0,pdt,spc);
-        
+
+    // Opt-in diagnostic: expose the low-energy continuum population that
+    // mcFindNext is about to sample. Restrict to the first ten sidecar events.
+    const char *populationDiagnostic = std::getenv("CGMF_G2_POPULATION_DIAGNOSTIC");
+    if (populationDiagnostic && *populationDiagnostic &&
+        g2SidecarEventId > 0 && g2SidecarEventId <= 10) {
+      const int z = ncl[c0].za.getZ();
+      const int a = ncl[c0].za.getA();
+      const double spinOffset = halfint(ncl[c0].lev[0].spin);
+      std::cerr << std::setprecision(12)
+                << "[G2 LOW-ENERGY POPULATION] event_id=" << g2SidecarEventId
+                << " fragment_side=" << g2SidecarFragmentSide
+                << " Z=" << z << " A=" << a
+                << " parent_E_MeV=" << mcurr.getE()
+                << " parent_J=" << (mcurr.getJ() + spinOffset)
+                << " parent_parity=" << mcurr.getP()
+                << " ncont=" << ncl[c0].ncont
+                << " lower_cut_MeV=" << CONTINUUM_LOWER_CUT
+                << std::endl;
+      for (int k = 1; k < ncl[c0].ncont; ++k) {
+        if (ncl[c0].excitation[k] > 0.5) continue;
+        for (int j = 0; j <= ncl[c0].jmax; ++j) {
+          const double even = ncl[c0].pop[k][j].even;
+          const double odd = ncl[c0].pop[k][j].odd;
+          if (even == 0.0 && odd == 0.0) continue;
+          std::cerr << "[G2 LOW-ENERGY BIN] event_id=" << g2SidecarEventId
+                    << " Z=" << z << " A=" << a
+                    << " k=" << k
+                    << " E_MeV=" << ncl[c0].excitation[k]
+                    << " spin_index=" << j
+                    << " J=" << (j + spinOffset)
+                    << " even_population=" << even
+                    << " odd_population=" << odd
+                    << std::endl;
+        }
+      }
+    }
+
     /*** move current position to the next state */
     //mnext = mcFindNext(c0,c1);
     mnext = mcFindNext(c0,c1,mcurr.getJ(),mcurr.getP());
+    if (populationDiagnostic && *populationDiagnostic &&
+        g2SidecarEventId > 0 && g2SidecarEventId <= 10 && mnext.isValid()) {
+      const int daughterNucleus = mnext.getN();
+      const double daughterOffset = halfint(ncl[daughterNucleus].lev[0].spin);
+      std::cerr << "[G2 POPULATION SELECTED] event_id=" << g2SidecarEventId
+                << " fragment_side=" << g2SidecarFragmentSide
+                << " parent_E_MeV=" << mcurr.getE()
+                << " parent_J=" << (mcurr.getJ() + halfint(ncl[c0].lev[0].spin))
+                << " parent_parity=" << mcurr.getP()
+                << " daughter_Z=" << ncl[daughterNucleus].za.getZ()
+                << " daughter_A=" << ncl[daughterNucleus].za.getA()
+                << " daughter_E_MeV=" << mnext.getE()
+                << " daughter_J=" << (mnext.getJ() + daughterOffset)
+                << " daughter_parity=" << mnext.getP()
+                << " daughter_discrete=" << (mnext.ifDiscrete() ? 1 : 0)
+                << " daughter_index=" << mnext.getK()
+                << std::endl;
+    }
     if (!mnext.isValid()) {
       cgmTerminateCode("[MC history] next-state selection returned an invalid state");
       return;
