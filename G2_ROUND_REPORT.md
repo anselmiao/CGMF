@@ -1741,3 +1741,27 @@ RIPL-4 的 Jπ 赋值包括唯一、受限候选和系统学推断。RIPL-4 read
 CI：
 - Nuclide audit tests: https://github.com/anselmiao/CGMF/actions/runs/44732238855
 - CGMF G2 build #293: https://github.com/anselmiao/CGMF/actions/runs/44732234289
+
+
+## Run #284：ground-state J 错误会改变连续态自旋格点
+
+独立报告：[run284-ground-spin-offset-root-cause.md](research/audits/run284-ground-spin-offset-root-cause.md)。
+
+源码追踪确认：
+- `cgm.h` 的 `halfint(x)` 根据 ground-state J 的两倍值奇偶性返回 0 或 0.5。
+- `popinit.cpp::statPopinitLevden()` 用 `j + halfint(n->lev[0].spin)` 构造连续态 spin distribution。
+- `statPopinitTransmission()` 也用相同 offset 构造 CN 自旋索引起点。
+- `specmc.cpp` 将 Monte Carlo spin index 加回相同 offset，恢复物理 J。
+- `MCPoint::getJ()` 返回数组索引，不是完整物理 J。
+
+因此，⁸⁹Br 当前 ground J=2 和 ¹⁰⁵Zr 当前 ground J=4 使 `halfint=0`；而 A=89、105 均为奇数，应该采用半整数自旋格点。Run #277 中 ⁸⁹Br 初态 J=3、¹⁰⁵Zr 初态 J=6 正好与错误整数格点相符。
+
+这不是单纯的基态表格错误：ground-state Jπ 错误会传入连续态自旋分布，进而影响事件初态、E1 bridge 的 Ji 判据及整个后续 cascade。该机制已 SOURCE_AUDITED + COMPUTATION_VERIFIED；但不宣称它是 Run #277 全部失败的唯一根因。
+
+### 当前处理
+
+- 不改生产 `discreteLevels.dat`。
+- 不直接把 ⁸⁹Br 5/2− 或 ¹⁰⁵Zr 1/2+# 升级为实验 PROVED。
+- 新增 odd/even-A 自旋量子化检查；Python audit tests 已通过 Run #3。
+- Nuclide audit workflow 增加对当前仓库八个失败核素的真实数据审计，预期明确报告 ⁸⁹Br、¹⁰⁵Zr 两个 anomaly。
+- 生产初始化 fail-closed gate 尚未实现；待来源审计和数据修正方案确认后再决定。
