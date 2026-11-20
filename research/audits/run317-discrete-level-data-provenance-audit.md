@@ -135,6 +135,15 @@ The CI run completed successfully:
 
 This is a **COMPUTATION_VERIFIED data-integrity baseline**, not a reconstruction of the original notebook's transformation process and not a G2 physics run.
 
+### G. Cross-source warning: the long-lived I-136 (6−) level has a RIPL/ENSDF energy discrepancy
+
+The RIPL-3 record lists level 7 at **640.000 keV**, (J^\pi=6^-), half-life (4.69\times10^1) s. The previously inspected ENSDF Adopted Levels evaluation lists a long-lived I-136 ((6^-)) level at **201(26) keV**, half-life 46.6 s. The similar (J^\pi) and half-life make these a plausible match to the same long-lived isomer, but the evaluated excitation energies differ substantially. This must be treated as a **cross-source discrepancy requiring evaluator/source-history reconciliation**, not as permission to silently replace one energy with the other.
+
+Neither energy is accessible from Run #317 event 6 at 19.0635 keV. The 86.73-keV RIPL/ENSDF low-lying candidate is also above that event energy. Therefore this discrepancy does not create a valid discrete endpoint for event 6, but it matters when constructing any later alternative level scheme B.
+
+The RIPL-3 source record, the ENSDF adopted evaluation, and the CGMF-prepared table must remain separate evidence objects until their level identity and adopted energy are reconciled. See the [NNDC ENSDF I-136 evaluation](https://www.nndc.bnl.gov/ensdf/getadopted.jsp?nuc=136I).
+
+
 ## Consequences for the Run #317 hypothesis
 
 The working hypothesis remains:
