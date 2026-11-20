@@ -36,6 +36,7 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(rows[0]["status"], "MATCHES_MIN_NMAX_NC_BOUND")
         self.assertEqual(rows[0]["RIPL_ground_J"], -1.0)
         self.assertEqual(rows[0]["CGMF_ground_J"], 4.0)
+        self.assertEqual(rows[0]["CGMF_ground_spin_quantization"], "INVALID_ODD_A_INTEGER_J")
 
     def test_ripl4_completeness_cutoff_can_exceed_cgmf_ndisc(self):
         ripl_text = "\n".join([
@@ -52,6 +53,7 @@ class ParserTests(unittest.TestCase):
             cp.write_text(cgmf_text, encoding="utf-8")
             rows = audit(parse_ripl(rp), parse_cgmf(cp), {"136I"})
         self.assertEqual(rows[0]["status"], "CGMF_BELOW_MIN_NMAX_NC_BOUND")
+        self.assertEqual(rows[0]["CGMF_ground_spin_quantization"], "VALID")
 
 
 if __name__ == "__main__":
