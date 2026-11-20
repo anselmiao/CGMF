@@ -50,3 +50,39 @@ The runtime database had only the 136I ground state (0 mathrm{keV},,1^-). NNDC E
 5. Do not modify transition strengths, selection rules, lower-cut, discrete data, golden outputs, or event skipping before these checks.
 
 No production source, nuclear data, golden output, or physical parameter was changed in this audit.
+
+
+## Cross-nuclide native-regression matrix: one-level database pattern is real, but the physical cause is not uniform
+
+The Run #253 `LastTest.log` contains 12 bridge diagnostics across 8 distinct nuclei. Every row reports `ndisc=1`. Ten are lower-cut failures; two are `mc_find_next` failures. The repeated 105Zr entry occurs in two test paths.
+
+| Nuclide | Event energy at bridge (MeV) | Failure site | Rejected condition | ENSDF first excited level | Comparison |
+|---|---:|---|---|---:|---|
+| 136I | 0.079303; 0.020540; 0.081165 | lower-cut ×2; mc_find_next ×1 | angular momentum | 0.08673 MeV | All listed failure energies are below first excited level |
+| 137I | 0.132298; 0.077394 | lower-cut ×2 | angular momentum | 0.2433 MeV | Both below first excited level |
+| 132I | 0.277059 | lower-cut | angular momentum | 0.022 MeV (uncertain adopted isomer level) | Above first excited level; database has omitted energetically accessible evaluated levels |
+| 105Zr | 1.179998 | lower-cut ×2 | angular momentum | Not yet retrieved from adopted-level table | BLOCKED |
+| 105Nb | 0.282518 | lower-cut | angular momentum | Not yet retrieved from adopted-level table | BLOCKED |
+| 96Y | 0.186721 | lower-cut | angular momentum | 0.122297 MeV | Above first excited level; at least one evaluated level is energetically accessible but absent from runtime database |
+| 138Te | 0.177691 | lower-cut | angular momentum | 0.46110 MeV | Below first excited level |
+| 89Br | 0.023216 | mc_find_next | parity | 0.1303 MeV | Below first excited level |
+
+ENSDF source records:
+- 136I: NNDC adopted levels, evaluated April 2018, 0 keV ground state and 86.73 keV first excited level: https://www.nndc.bnl.gov/ensdf/getadopted.jsp?nuc=136I
+- 137I: NNDC adopted levels, evaluated October 2006, first excited level 243.3 keV: https://www.nndc.bnl.gov/ensnds/137/I/adopted.pdf
+- 132I: NNDC adopted levels, evaluated February 2005, 22-keV tentative/isomeric level and additional 49.72-keV level: https://www.nndc.bnl.gov/ensdf/getadopted.jsp?nuc=132I
+- 96Y: NNDC adopted levels, evaluated April 2008, first excited level 122.297 keV: https://www.nndc.bnl.gov/ensnds/96/Y/adopted.pdf
+- 138Te: NNDC adopted levels, evaluated September 2017, first excited level 461.10 keV: https://www.nndc.bnl.gov/ensnds/138/Te/248cm_sf_decay.pdf
+- 89Br: NNDC adopted levels, evaluated November 2021, first excited level 130.3 keV: https://www.nndc.bnl.gov/ensdf/getadopted.jsp?nuc=89Br
+- 105Zr and 105Nb both have adopted-level datasets in the NNDC A=105 index (2020-02); their exact first-level energies remain to be retrieved and checked before classification: https://www.nndc.bnl.gov/ensdf/DatasetFetchServlet?datasource=ensdf&mass=105&nucmass=isMass&searchType=ensdfIndex
+
+### Corrected interpretation
+
+The common software/data condition is established: all observed failures in this native-regression diagnostic set occur for nuclei with only one runtime discrete level, which activates the `elmax == 0` continuum-to-zero path. But it is **not** correct to treat all eight failures as the same physical error:
+
+- **Sub-threshold pseudo-continuum cases:** 136I, 137I, 138Te, and 89Br have bridge energies below the first ENSDF excited level. Their low-energy continuum population is not supported by the evaluated discrete spectrum.
+- **Missing accessible discrete-level cases:** 132I and 96Y have known ENSDF levels below the bridge energy. Their runtime `ndisc=1` means the database used by this build omits levels that are energetically accessible. This is a distinct data-coverage problem, not just a continuum-threshold problem.
+- **Unclassified until source-level table retrieval:** 105Zr and 105Nb.
+
+Thus the root cause is a **two-branch failure family** under the same `ndisc=1` setup: (A) continuum extrapolation below the first real excited state, and (B) missing discrete levels that should be accessible. The fallback E1 bridge then exposes spin/parity combinations that cannot be mapped to the single stored ground state. Do not change the E1 selection rule or global continuum cutoff until the per-nuclide classification is complete.
+
