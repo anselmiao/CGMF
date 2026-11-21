@@ -27,6 +27,7 @@ using namespace std;
 #include "ripl2levels.h"
 #include "terminate.h"
 #include "config.h"
+#include "discreteLevelLookup.h"
 
 static void riplSelectCandidate  (string, double *, int *);
 static int  riplFixTransition    (int *, double *, double *, int k , Level * );
@@ -125,6 +126,15 @@ void readDiscreteLevelData () {
 			<< " too many (" << nol << ")";
 			fp.close();
 			cgmTerminateCode(os.str());
+		}
+
+		if (c >= MAX_NUCLEI) {
+			os.str("");
+			os << "CGMF discrete level database exceeds MAX_NUCLEI capacity ("
+			   << MAX_NUCLEI << ")";
+			fp.close();
+			cgmTerminateCode(os.str());
+			return;
 		}
 
 		zaidIndex[c] = zaid;
@@ -262,12 +272,8 @@ void getDiscreteLevels (Nucleus *ncl, int nemit) {
 
 	for (int k=0; k<=nemit; k++) {
 		zaid = 1000*ncl[k].za.getZ()+ncl[k].za.getA();
-		found=false;
-		id=-1;
-		while (!found && id<MAX_NUCLEI) {
-			id++;
-			if (zaidIndex[id]==zaid) found=true;
-		}
+		id = cgmf::findDiscreteLevelIndex(zaidIndex, NUM_NUCLEI, zaid);
+		found = (id >= 0);
 		if (!found) {
 			ncl[k].ndisc = riplGSonly(ncl[k].za.getZ(), ncl[k].za.getA(), ncl[k].lev);
 		} else {

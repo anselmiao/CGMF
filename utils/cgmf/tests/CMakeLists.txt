@@ -49,6 +49,12 @@ add_executable(gamma-transmission-zero-energy-test
 target_include_directories(gamma-transmission-zero-energy-test PRIVATE
   ${CMAKE_SOURCE_DIR}/libcgmf/include)
 add_test(NAME gamma-transmission-zero-energy COMMAND gamma-transmission-zero-energy-test)
+
+add_executable(discrete-level-lookup-test
+  discrete-level-lookup.cpp)
+target_include_directories(discrete-level-lookup-test PRIVATE
+  ${CMAKE_SOURCE_DIR}/libcgmf/include)
+add_test(NAME discrete-level-lookup COMMAND discrete-level-lookup-test)
 add_subdirectory(mcpoint-status)
 
 add_subdirectory(g2-sidecar-transaction)
