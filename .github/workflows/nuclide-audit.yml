@@ -67,14 +67,6 @@ jobs:
             --ripl data/ripl3-levels.dat \
             --cgmf data/discreteLevels.dat
 
-      - name: Upload the full-table quantum-number audit report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: discrete-level-quantum-number-audit
-          path: ${{ runner.temp }}/discrete-level-quantum-number-audit.json
-          if-no-files-found: warn
-
       - name: Audit the complete CGMF discrete-level quantum-number table
         run: |
           python scripts/audit_discrete_level_quantum_numbers.py \
@@ -103,3 +95,11 @@ jobs:
           print(json.dumps(report["counts"], sort_keys=True))
           print("Known data anomalies are recorded, not silently repaired.")
           PY
+      - name: Upload the full-table quantum-number audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: discrete-level-quantum-number-audit
+          path: ${{ runner.temp }}/discrete-level-quantum-number-audit.json
+          if-no-files-found: warn
+
