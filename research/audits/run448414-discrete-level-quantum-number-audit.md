@@ -42,7 +42,7 @@ For every level, the scanner skips exactly the number of following gamma-branch 
 - Git blob SHA-1: dfd64cd3d7d890fec4b74e4bb82575ce0cc82e7c
 - Raw-file SHA-256: c79679e4247ddf69e3766ccce0b3177fcb7b253e26fd50ff621d2721d023c80e
 
-The complete-file counts above were obtained by parsing the complete GitHub API file body with these fixed-width fields. The added Python audit utility reproduces the same contract; its six synthetic parser tests passed locally. The new CI step will independently run that utility against the actual complete repository file and assert the frozen hash and counts. Until that CI run completes, the Python utility's full-file execution is pending; the complete-file scan itself is already computed.
+The complete-file counts above were obtained by parsing the complete GitHub API file body with these fixed-width fields. The added Python audit utility reproduces the same contract; its seven synthetic parser tests passed locally. The new CI step will independently run that utility against the actual complete repository file and assert the frozen hash and counts. Until that CI run completes, the Python utility's full-file execution is pending; the complete-file scan itself is already computed.
 
 ## Ground-state anomalies
 

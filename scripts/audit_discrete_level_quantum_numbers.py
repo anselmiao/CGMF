@@ -54,7 +54,7 @@ def audit_discrete_levels(path: Path) -> dict:
         if not header or header.startswith("#"):
             i += 1
             continue
-        if len(header) < 17:
+        if len(header) < 13:
             raise ValueError(f"line {i + 1}: truncated isotope header")
 
         zaid = _int_field(header[6:12], "ZAID", i + 1)

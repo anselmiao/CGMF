@@ -33,6 +33,15 @@ class DiscreteLevelQuantumNumberAuditTests(unittest.TestCase):
         self.assertEqual(report["counts"]["levels"], 2)
         self.assertEqual(report["counts"]["spin_lattice_violations"], 0)
 
+    def test_short_light_nucleus_header_is_valid_when_fixed_fields_exist(self):
+        content = "\n".join([
+            "1n        1   1", level(0.0, 0.5, 1), "",
+        ])
+        report = self.run_audit(content)
+        self.assertEqual(report["counts"]["nuclei"], 1)
+        self.assertEqual(report["counts"]["levels"], 1)
+        self.assertEqual(report["counts"]["spin_lattice_violations"], 0)
+
     def test_odd_mass_integer_spin_is_reported(self):
         content = "\n".join([
             header("89Br", 35089, 1), level(0.0, 2.0, 1), "",
