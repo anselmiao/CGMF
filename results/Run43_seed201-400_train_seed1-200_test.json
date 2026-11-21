@@ -1,0 +1,218 @@
+{
+  "schema": "cgmf.g2.event-state-model-competition.v1",
+  "train_files": [
+    "/mnt/data/g2run43/pu239-thermal-seed201/on/mixed-history.jsonl"
+  ],
+  "test_files": [
+    "/mnt/data/g2run43/pu239-thermal/on/mixed-history.jsonl"
+  ],
+  "n_train_events": 200,
+  "n_test_events": 200,
+  "train_run_ids": [
+    "ci-g2-pu239-thermal-seed201"
+  ],
+  "test_run_ids": [
+    "ci-g2-pu239-thermal"
+  ],
+  "train_rng_seed_ranges": [
+    [
+      201,
+      400
+    ]
+  ],
+  "test_rng_seed_ranges": [
+    [
+      1,
+      200
+    ]
+  ],
+  "ridge_lambda": 1.0,
+  "target_features": [
+    "HF_neutron_count",
+    "HF_neutron_total_E_lab_MeV",
+    "HF_gamma_count",
+    "HF_gamma_total_E_cm_MeV"
+  ],
+  "models": {
+    "M0": "intercept-only training-mean baseline",
+    "M1": "recorded LF/HF initial state only (A/Z, parity, excitation, stored spin and raw momentum vectors); derived magnitudes/closure are diagnostics only",
+    "M2": "M1 plus the training-residualized nonlinear TXE*TKE interaction; its linearly predictable component is removed using training data only",
+    "M3": "M2 plus LF neutron/gamma/internal-conversion history summaries"
+  },
+  "results": {
+    "M0": {
+      "targets": {
+        "HF_neutron_count": {
+          "RMSE": 0.7999999999999999,
+          "train_SD_normalized_RMSE": 1.0341753799900384,
+          "test_SD_normalized_RMSE": 1.0
+        },
+        "HF_neutron_total_E_lab_MeV": {
+          "RMSE": 1.7544228832380027,
+          "train_SD_normalized_RMSE": 0.8955945610523111,
+          "test_SD_normalized_RMSE": 1.0
+        },
+        "HF_gamma_count": {
+          "RMSE": 2.8487936043174487,
+          "train_SD_normalized_RMSE": 1.056968046145266,
+          "test_SD_normalized_RMSE": 1.0
+        },
+        "HF_gamma_total_E_cm_MeV": {
+          "RMSE": 2.4270658957391436,
+          "train_SD_normalized_RMSE": 1.09616373719578,
+          "test_SD_normalized_RMSE": 1.0
+        }
+      },
+      "mean_train_SD_normalized_RMSE": 1.020725431095849
+    },
+    "M1": {
+      "targets": {
+        "HF_neutron_count": {
+          "RMSE": 0.4136597738456846,
+          "train_SD_normalized_RMSE": 0.5347459422543178,
+          "test_SD_normalized_RMSE": 0.5170747173071057
+        },
+        "HF_neutron_total_E_lab_MeV": {
+          "RMSE": 1.3311557172227086,
+          "train_SD_normalized_RMSE": 0.6795259179805266,
+          "test_SD_normalized_RMSE": 0.758742792254224
+        },
+        "HF_gamma_count": {
+          "RMSE": 2.221330111558007,
+          "train_SD_normalized_RMSE": 0.8241646373745096,
+          "test_SD_normalized_RMSE": 0.7797441373750283
+        },
+        "HF_gamma_total_E_cm_MeV": {
+          "RMSE": 2.361462405317211,
+          "train_SD_normalized_RMSE": 1.0665344768776983,
+          "test_SD_normalized_RMSE": 0.972970041506865
+        }
+      },
+      "mean_train_SD_normalized_RMSE": 0.7762427436217632
+    },
+    "M2": {
+      "targets": {
+        "HF_neutron_count": {
+          "RMSE": 0.4100350945822425,
+          "train_SD_normalized_RMSE": 0.5300602496860525,
+          "test_SD_normalized_RMSE": 0.5125438682278032
+        },
+        "HF_neutron_total_E_lab_MeV": {
+          "RMSE": 1.3524875711936863,
+          "train_SD_normalized_RMSE": 0.6904153634934065,
+          "test_SD_normalized_RMSE": 0.770901693152511
+        },
+        "HF_gamma_count": {
+          "RMSE": 2.2225280198051025,
+          "train_SD_normalized_RMSE": 0.8246090889267299,
+          "test_SD_normalized_RMSE": 0.7801646340530889
+        },
+        "HF_gamma_total_E_cm_MeV": {
+          "RMSE": 2.36729726497789,
+          "train_SD_normalized_RMSE": 1.0691697417804318,
+          "test_SD_normalized_RMSE": 0.9753741211286513
+        }
+      },
+      "mean_train_SD_normalized_RMSE": 0.7785636109716552
+    },
+    "M3": {
+      "targets": {
+        "HF_neutron_count": {
+          "RMSE": 0.4139878719267266,
+          "train_SD_normalized_RMSE": 0.5351700809513623,
+          "test_SD_normalized_RMSE": 0.5174848399084083
+        },
+        "HF_neutron_total_E_lab_MeV": {
+          "RMSE": 1.3703971131263222,
+          "train_SD_normalized_RMSE": 0.6995577934622882,
+          "test_SD_normalized_RMSE": 0.7811099172379046
+        },
+        "HF_gamma_count": {
+          "RMSE": 2.2342082386778053,
+          "train_SD_normalized_RMSE": 0.8289427191699738,
+          "test_SD_normalized_RMSE": 0.7842646920056907
+        },
+        "HF_gamma_total_E_cm_MeV": {
+          "RMSE": 2.4138230320888536,
+          "train_SD_normalized_RMSE": 1.0901827100899397,
+          "test_SD_normalized_RMSE": 0.9945436736293239
+        }
+      },
+      "mean_train_SD_normalized_RMSE": 0.788463325918391
+    }
+  },
+  "paired_event_bootstrap": {
+    "M1_vs_M0": {
+      "delta_mean_train_SD_normalized_RMSE": -0.24448268747408575,
+      "paired_event_bootstrap_95pct_CI": [
+        -0.2928568050132998,
+        -0.19416999038189253
+      ],
+      "bootstrap_replicates": 2000,
+      "bootstrap_unit": "held-out complete LF/HF event pair"
+    },
+    "M2_vs_M1": {
+      "delta_mean_train_SD_normalized_RMSE": 0.0023208673498921195,
+      "paired_event_bootstrap_95pct_CI": [
+        -0.0034897438107379664,
+        0.007886836877363579
+      ],
+      "bootstrap_replicates": 2000,
+      "bootstrap_unit": "held-out complete LF/HF event pair"
+    },
+    "M3_vs_M2": {
+      "delta_mean_train_SD_normalized_RMSE": 0.009899714946735694,
+      "paired_event_bootstrap_95pct_CI": [
+        0.0017869013082899565,
+        0.017919227402321436
+      ],
+      "bootstrap_replicates": 2000,
+      "bootstrap_unit": "held-out complete LF/HF event pair"
+    }
+  },
+  "heldout_test_event_state_diagnostics": {
+    "TXE_sum_initial_fragment_excitation_MeV": {
+      "mean": 25.033011317499387,
+      "sd": 7.078888102616856
+    },
+    "TKE_nonrel_proxy_MeV": {
+      "mean": 178.83147187457715,
+      "sd": 9.157492820411063
+    },
+    "momentum_closure_MeV_c": {
+      "mean": 0.006895071116906166,
+      "sd": 1.3343311528820723e-13
+    },
+    "p_L_MeV_c": {
+      "mean": 4403.06187029171,
+      "sd": 144.92132889964245
+    },
+    "p_H_MeV_c": {
+      "mean": 4403.061555318101,
+      "sd": 144.92123359062333
+    }
+  },
+  "relative_error_change_vs_M0": {
+    "M1": -0.23951856202074795,
+    "M2": -0.2372448189756664,
+    "M3": -0.22754611387324974
+  },
+  "sequential_relative_error_change": {
+    "M2_vs_M1": 0.0029898731665605194,
+    "M3_vs_M2": 0.01271535788113809
+  },
+  "derived_quantity_definitions": {
+    "TXE_sum_initial_fragment_excitation_MeV": "E*_L + E*_H from stored initial_fragment.excitation_MeV",
+    "TKE_nonrel_proxy_MeV": "|p_L|^2/(2 A_L u) + |p_H|^2/(2 A_H u), u=931.49410242 MeV/c^2; approximate nonrelativistic diagnostic only",
+    "momentum_closure_MeV_c": "|p_L + p_H| from stored pre-fragment momentum vectors"
+  },
+  "limitations": [
+    "TXE and TKE are derived conventional simulation diagnostics, not primitive \u6c14\u8bba state variables.",
+    "TKE is a proxy using A*u masses; it is not a validated CGMF event TKE observable.",
+    "M2 tests only the nonlinear component of TXE*TKE not linearly predictable from M1; TXE and TKE proxy are deterministic transforms of M1 inputs, not independent state observations.",
+    "M3 incremental prediction does not prove direct LF-to-HF causation; omitted common causes remain.",
+    "The split must be by disjoint audited RNG seeds, not merely distinct run_id labels or random events from one run.",
+    "Linear ridge is a baseline model class; nonlinear model families require separate preregistration.",
+    "Only complete event pairs are included; event_id is local to each input file."
+  ]
+}

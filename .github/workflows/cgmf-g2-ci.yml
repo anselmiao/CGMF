@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - qi/g2-neutron-transition-history
+      - qi/g2-unified-history-v1
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -34,20 +36,134 @@ jobs:
       - name: Run native CGMF test suite
         run: ctest --test-dir build --output-on-failure
 
-      - name: Run complete G2 neutron sidecar matrix
+      - name: Run G2 three-layer analysis unit tests (synthetic fixtures)
+        run: python3 -m unittest discover -s tools/tests -p 'testG2ThreeLayerAnalysis.py' -v
+
+      - name: Run conditional full-history analysis unit tests (synthetic fixtures)
+        run: python3 -m unittest discover -s tools/tests -p 'testG2ConditionalHistoryAnalysis.py' -v
+
+      - name: Run matched conditional history unit tests (synthetic fixtures)
+        run: python3 -m unittest discover -s tools/tests -p 'testG2MatchedHistoryPermutation.py' -v
+
+      - name: Run event-state model competition unit tests (synthetic fixtures)
+        run: python3 -m unittest discover -s tools/tests -p 'testG2EventStateModelCompetition.py' -v
+      - name: Run fragment-state ablation unit tests (synthetic fixtures)
+        run: python3 -m unittest discover -s tools/tests -p 'testG2FragmentStateAblation.py' -v
+
+      - name: Run RNG seed matrix validator unit tests
+        run: python3 -m unittest discover -s tools/tests -p 'testG2SeedMatrix.py' -v
+
+      - name: Validate non-overlapping RNG seed ranges in matrix
+        run: python3 tools/tests/validateG2SeedMatrix.py tools/tests/g2SidecarMatrix.json
+
+      - name: Run complete G2 neutron and mixed-history sidecar matrix
         run: |
           set -euo pipefail
           python3 tools/tests/runG2SidecarMatrix.py \
             --binary build/utils/cgmf/cgmf.x \
             --matrix tools/tests/g2SidecarMatrix.json \
             --validator tools/tests/testG2Sidecar.py \
+            --mixed-validator tools/tests/testG2MixedHistory.py \
             --output-dir build/g2-sidecar-matrix
+
+      - name: Run conditional full-history analysis on representative CI simulations
+        run: |
+          set -euo pipefail
+          mkdir -p build/g2-sidecar-matrix/conditional-analysis
+          for case_name in cf252-sf pu239-thermal u235-thermal; do
+            python3 tools/analysis/g2ConditionalHistoryAnalysis.py \
+              "build/g2-sidecar-matrix/${case_name}/on/mixed-history.jsonl" \
+              --output "build/g2-sidecar-matrix/conditional-analysis/${case_name}.json" \
+              --excitation-bins-MeV 1,2,4 \
+              --permutations 250 \
+              --seed 20261119
+            python3 tools/analysis/g2ConditionalHistoryAnalysis.py \
+              "build/g2-sidecar-matrix/${case_name}/on/mixed-history.jsonl" \
+              --output "build/g2-sidecar-matrix/conditional-analysis/${case_name}-spin-parity.json" \
+              --excitation-bins-MeV 1,2,4 \
+              --permutations 250 \
+              --seed 20261119 \
+              --include-spin-parity
+            python3 tools/analysis/g2MatchedHistoryPermutation.py \
+              "build/g2-sidecar-matrix/${case_name}/on/mixed-history.jsonl" \
+              --output "build/g2-sidecar-matrix/conditional-analysis/${case_name}-matched.json" \
+              --calipers 1.5,2.5 \
+              --permutations 250 \
+              --seed 20261119
+          done
+
+      - name: Run three-fold event-state model competition across independent Pu-239 thermal seed ranges
+        run: |
+          set -euo pipefail
+          out=build/g2-sidecar-matrix/event-state-model-competition
+          mkdir -p "$out"
+          # Each fold trains on two disjoint 200-event seed ranges and tests on the third.
+          python3 tools/analysis/g2EventStateModelCompetition.py \
+            --train build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --output "$out/train-1-200_201-400_test-401-600.json"
+          python3 tools/analysis/g2EventStateModelCompetition.py \
+            --train build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+            --output "$out/train-1-200_401-600_test-201-400.json"
+          python3 tools/analysis/g2EventStateModelCompetition.py \
+            --train build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+            --output "$out/train-201-400_401-600_test-1-200.json"
+
+      - name: Run three-fold LF intrinsic-state ablation beyond HF and conserved A/Z controls
+        run: |
+          set -euo pipefail
+          out=build/g2-sidecar-matrix/fragment-state-ablation
+          mkdir -p "$out"
+          python3 tools/analysis/g2FragmentStateAblation.py \
+            --train build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --output "$out/train-1-200_201-400_test-401-600.json" \
+            --ridge 1.0 --bootstrap 2000 --bootstrap-seed 20261119
+          python3 tools/analysis/g2FragmentStateAblation.py \
+            --train build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+            --output "$out/train-1-200_401-600_test-201-400.json" \
+            --ridge 1.0 --bootstrap 2000 --bootstrap-seed 20261119
+          python3 tools/analysis/g2FragmentStateAblation.py \
+            --train build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+            --output "$out/train-201-400_401-600_test-1-200.json" \
+            --ridge 1.0 --bootstrap 2000 --bootstrap-seed 20261119
+
+      - name: Run three-fold shared-energy versus LF spin/parity decomposition (post-hoc diagnostic)
+        run: |
+          set -euo pipefail
+          out=build/g2-sidecar-matrix/shared-energy-decomposition
+          mkdir -p "$out"
+          python3 tools/analysis/g2SharedEnergyDecomposition.py \
+            --train build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --output "$out/train-1-200_201-400_test-401-600.json"
+          python3 tools/analysis/g2SharedEnergyDecomposition.py \
+            --train build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+            --output "$out/train-1-200_401-600_test-201-400.json"
+          python3 tools/analysis/g2SharedEnergyDecomposition.py \
+            --train build/g2-sidecar-matrix/pu239-thermal-seed201/on/mixed-history.jsonl \
+                    build/g2-sidecar-matrix/pu239-thermal-seed401/on/mixed-history.jsonl \
+            --test build/g2-sidecar-matrix/pu239-thermal/on/mixed-history.jsonl \
+            --output "$out/train-201-400_401-600_test-1-200.json"
 
       - name: Save G2 matrix artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cgmf-g2-sidecar-matrix
+          name: cgmf-g2-mixed-history-matrix
           path: |
             build/g2-sidecar-matrix/
           if-no-files-found: warn
