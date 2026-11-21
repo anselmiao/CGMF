@@ -42,7 +42,7 @@ For every level, the scanner skips exactly the number of following gamma-branch 
 - Git blob SHA-1: dfd64cd3d7d890fec4b74e4bb82575ce0cc82e7c
 - Raw-file SHA-256: c79679e4247ddf69e3766ccce0b3177fcb7b253e26fd50ff621d2721d023c80e
 
-The complete-file counts above were obtained by parsing the complete GitHub API file body with these fixed-width fields. The added Python audit utility reproduces the same contract; its seven synthetic parser tests passed locally. The new CI step will independently run that utility against the actual complete repository file and assert the frozen hash and counts. Until that CI run completes, the Python utility's full-file execution is pending; the complete-file scan itself is already computed.
+The complete-file counts above were obtained by parsing the complete GitHub API file body with these fixed-width fields. The added Python audit utility reproduces the same contract; its seven synthetic parser tests passed locally. CI run 44843184310 independently ran the Python utility against the complete repository file and verified the frozen hash and all counts. All 42 Python audit tests passed in that run (including the seven new parser tests); the complete-table audit step passed. The generated JSON now uploads as a workflow artifact so the row-level findings remain inspectable.
 
 ## Ground-state anomalies
 
@@ -91,6 +91,8 @@ The runtime record is 105Zr / ZAID 40105, with one zero-energy level and Jπ=4+.
 The paired RIPL-3 row has unassigned Jπ fields (-1, 0) and no textual adopted candidate in that row. It therefore does not provide evidence for the runtime 4+ assignment.
 
 These examples are independently confirmed from the exact rows in data/discreteLevels.dat and data/ripl3-levels.dat. They do not authorize replacing either assignment with a guessed value.
+
+The CGMF User Manual states that uncertain RIPL Jπ candidate lists are resolved by selecting the first option, and that a completely unknown ground state defaults to 0+ for even-even, 1+ for odd-odd, and 1/2+ for even-odd nuclei. Under those documented rules, the Br-89 prepared 2+ assignment is inconsistent with the RIPL candidate text (3/2−, 5/2−), and the Zr-105 prepared 4+ assignment is inconsistent with the odd-A unknown-ground-state default 1/2+. The official preparation method is documented at https://cgmf.readthedocs.io/en/latest/discreteLevels.html. This sharpens the source-to-prepared-file discrepancy, but the exact historical notebook, class version, inputs, and random seed are still unavailable; it does not identify the causal software defect.
 
 ## Interpretation and limits
 
