@@ -73,6 +73,10 @@ void gdrParameterSave(int nmp, GDR *gdr0)
 /**********************************************************/
 double gdrGammaTransmission(GammaProfile c, int l, double eg, GammaMultipol gm, double a, double ex)
 {
+  // A zero-energy photon has zero transmission. Return before evaluating
+  // Lorentzian factors containing eg^(2-2*l), which are singular for E2.
+  if(eg == 0.0) return 0.0;
+
   string xl = "  ";
 
   switch(gm){

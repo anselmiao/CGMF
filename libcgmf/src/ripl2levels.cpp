@@ -27,6 +27,7 @@ using namespace std;
 #include "ripl2levels.h"
 #include "terminate.h"
 #include "config.h"
+#include "discreteLevelLookup.h"
 
 static void riplSelectCandidate  (string, double *, int *);
 static int  riplFixTransition    (int *, double *, double *, int k , Level * );
@@ -125,6 +126,15 @@ void readDiscreteLevelData () {
 			<< " too many (" << nol << ")";
 			fp.close();
 			cgmTerminateCode(os.str());
+		}
+
+		if (c >= MAX_NUCLEI) {
+			os.str("");
+			os << "CGMF discrete level database exceeds MAX_NUCLEI capacity ("
+			   << MAX_NUCLEI << ")";
+			fp.close();
+			cgmTerminateCode(os.str());
+			return;
 		}
 
 		zaidIndex[c] = zaid;
@@ -252,15 +262,18 @@ void getDiscreteLevels (Nucleus *ncl, int nemit) {
 	int id;
 	int zaid;
 	bool found;
+	const bool levelLookupDiagnostic =
+		(getenv("CGMF_G2_LEVEL_LOOKUP_DIAGNOSTIC") != NULL);
+	if (levelLookupDiagnostic) {
+		const int parentZAID = 1000*ncl[0].za.getZ()+ncl[0].za.getA();
+		cerr << "[CGMF G2 EXACT LEVEL LOOKUP BEGIN] parent_ZAID="
+		     << parentZAID << " nemit=" << nemit << endl;
+	}
 
 	for (int k=0; k<=nemit; k++) {
 		zaid = 1000*ncl[k].za.getZ()+ncl[k].za.getA();
-		found=false;
-		id=-1;
-		while (!found && id<MAX_NUCLEI) {
-			id++;
-			if (zaidIndex[id]==zaid) found=true;
-		}
+		id = cgmf::findDiscreteLevelIndex(zaidIndex, NUM_NUCLEI, zaid);
+		found = (id >= 0);
 		if (!found) {
 			ncl[k].ndisc = riplGSonly(ncl[k].za.getZ(), ncl[k].za.getA(), ncl[k].lev);
 		} else {
@@ -268,6 +281,27 @@ void getDiscreteLevels (Nucleus *ncl, int nemit) {
 			for (int i=0; i<ncl[k].ndisc; i++) {
 				ncl[k].lev[i] = allLevels[id][i];
 			}
+		}
+		if (levelLookupDiagnostic &&
+		    (!found || ncl[k].ndisc <= 1 ||
+		     zaid == 35089 || zaid == 37096 || zaid == 39096 ||
+		     zaid == 40105 || zaid == 41105 || zaid == 52138 ||
+		     zaid == 53132 || zaid == 53136 || zaid == 53137)) {
+			cerr << "[CGMF G2 EXACT LEVEL LOOKUP RESULT] parent_ZAID="
+			     << (1000*ncl[0].za.getZ()+ncl[0].za.getA())
+			     << " daughter_offset=" << k
+			     << " expected_ZAID=" << zaid
+			     << " exact_found=" << found
+			     << " exact_index=" << (found ? id : -1)
+			     << " database_ndisc=" << (found ? numberLevels[id] : -1)
+			     << " resulting_ndisc=" << ncl[k].ndisc
+			     << " ground_energy_MeV="
+		     << (ncl[k].ndisc > 0 ? ncl[k].lev[0].energy : -1.0)
+			     << " ground_spin="
+		     << (ncl[k].ndisc > 0 ? ncl[k].lev[0].spin : -1.0)
+			     << " ground_parity="
+		     << (ncl[k].ndisc > 0 ? ncl[k].lev[0].parity : 0)
+			     << endl;
 		}
 	}
 
@@ -307,14 +341,58 @@ void getRiplDiscreteLevels (Nucleus *ncl, int nemit) {
 		if (zaidIndex[id]==zaid) found=true;
 	}
 
+	const bool levelLookupDiagnostic =
+		(getenv("CGMF_G2_LEVEL_LOOKUP_DIAGNOSTIC") != NULL);
+	const int auditedZAIDs[] = {
+		35089, 37096, 39096, 40105, 41105, 52138,
+		53132, 53136, 53137
+	};
+
 	for (int k=0; k<=nemit; k++) {
 		found = false;
-		if (zaidIndex[id-k]==zaid-k) found = true;
-		ncl[k].ndisc = numberLevels[id-k];
+		const int expectedZAID = zaid-k;
+		const int positionalIndex = id-k;
+		const bool positionalIndexValid =
+			(positionalIndex >= 0 && positionalIndex < NUM_NUCLEI);
+		const int positionalZAID =
+			positionalIndexValid ? zaidIndex[positionalIndex] : -1;
+		const int positionalNdisc =
+			positionalIndexValid ? numberLevels[positionalIndex] : -1;
+		int exactIndex = -1;
+		for (int entry=0; entry<NUM_NUCLEI; ++entry) {
+			if (zaidIndex[entry] == expectedZAID) {
+				exactIndex = entry;
+				break;
+			}
+		}
+		const bool audited = std::find(
+			auditedZAIDs, auditedZAIDs + sizeof(auditedZAIDs)/sizeof(auditedZAIDs[0]),
+			expectedZAID) != auditedZAIDs + sizeof(auditedZAIDs)/sizeof(auditedZAIDs[0]);
+		if (levelLookupDiagnostic && audited) {
+			std::cerr << "[CGMF G2 LEVEL LOOKUP] parent_ZAID=" << zaid
+				<< " daughter_offset=" << k
+				<< " expected_ZAID=" << expectedZAID
+				<< " positional_index=" << positionalIndex
+				<< " positional_ZAID=" << positionalZAID
+				<< " positional_ndisc=" << positionalNdisc
+				<< " exact_index=" << exactIndex
+				<< " exact_ndisc=" << (exactIndex >= 0 ? numberLevels[exactIndex] : -1)
+				<< std::endl;
+		}
+		if (positionalIndexValid && positionalZAID == expectedZAID) found = true;
+		ncl[k].ndisc = numberLevels[positionalIndex];
 		for (int i=0; i<ncl[k].ndisc; i++) {
-			ncl[k].lev[i] = allLevels[id-k][i];
+			ncl[k].lev[i] = allLevels[positionalIndex][i];
 		}
 		fixLevels (&ncl[k], found, ml);
+		if (levelLookupDiagnostic && audited) {
+			std::cerr << "[CGMF G2 LEVEL LOOKUP RESULT] expected_ZAID=" << expectedZAID
+				<< " found_by_position=" << found
+				<< " resulting_ndisc=" << ncl[k].ndisc
+				<< " resulting_ground_spin=" << (ncl[k].ndisc > 0 ? ncl[k].lev[0].spin : -1.0)
+				<< " resulting_ground_parity=" << (ncl[k].ndisc > 0 ? ncl[k].lev[0].parity : 0)
+				<< std::endl;
+		}
 	}
 
 	return;

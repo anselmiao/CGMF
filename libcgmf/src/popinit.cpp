@@ -181,6 +181,19 @@ void statPopinitTransmission(int k0, Nucleus *n0, Nucleus *n1, Transmission *tin
     sd += n0->pop[k0][j].even;
     sd += n0->pop[k0][j].odd ;
   }
+  const char *lpopDiagnostic = std::getenv("CGMF_G2_LPOP_WRITE_DIAGNOSTIC");
+  if (lpopDiagnostic && *lpopDiagnostic && (!std::isfinite(sd) || sd == 0.0)) {
+    std::cerr << std::setprecision(17)
+              << "[G2 NONFINITE INITIAL POP NORMALIZER] Z=" << n0->za.getZ()
+              << " A=" << n0->za.getA() << " k=" << k0
+              << " sd=" << sd << " jmax=" << n0->jmax << std::endl;
+    for (int j=0; j<=n0->jmax; ++j) {
+      std::cerr << "[G2 INITIAL POP RAW] Z=" << n0->za.getZ()
+                << " A=" << n0->za.getA() << " j=" << j
+                << " even=" << n0->pop[k0][j].even
+                << " odd=" << n0->pop[k0][j].odd << std::endl;
+    }
+  }
   for(int j=0 ; j<=n0->jmax ; j++){
     n0->pop[k0][j].even /= sd;
     n0->pop[k0][j].odd  /= sd;

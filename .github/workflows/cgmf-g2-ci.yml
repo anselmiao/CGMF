@@ -51,6 +51,8 @@ jobs:
         continue-on-error: true
         env:
           CGMF_G2_CDF_DIAGNOSTIC: "1"
+          CGMF_G2_LPOP_WRITE_DIAGNOSTIC: "1"
+          CGMF_G2_LEVEL_LOOKUP_DIAGNOSTIC: "1"
         run: ctest --test-dir build --output-on-failure
 
       - name: Run G2 three-layer analysis unit tests (synthetic fixtures)
@@ -87,6 +89,8 @@ jobs:
         run: python3 tools/tests/validateG2SeedMatrix.py tools/tests/g2SidecarMatrix.json
 
       - name: Verify bin-sample diagnostic non-interference on fixed Cf-252 seed range
+        env:
+          CGMF_G2_LPOP_WRITE_DIAGNOSTIC: "1"
         run: |
           set -euo pipefail
           python3 tools/tests/probeG2BinSampleDiagnostic.py \
@@ -97,6 +101,8 @@ jobs:
       - name: Run complete G2 neutron and mixed-history sidecar matrix
         env:
           CGMF_G2_CDF_DIAGNOSTIC: "1"
+          CGMF_G2_LPOP_WRITE_DIAGNOSTIC: "1"
+          CGMF_G2_LEVEL_LOOKUP_DIAGNOSTIC: "1"
         run: |
           set -euo pipefail
           python3 tools/tests/runG2SidecarMatrix.py \

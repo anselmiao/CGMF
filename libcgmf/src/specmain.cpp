@@ -11,6 +11,7 @@
 */
 
 #include <iostream>
+#include <iomanip>
 #include <cstdlib>
 #include <cmath>
 #include <cstdio>
@@ -291,12 +292,28 @@ void    specCompoundDecay(int c0, int k0, Transmission *tc, Transmission *td,
     for(int p0=-1 ; p0<=1 ; p0+=2){
       
       double pop = (p0==1) ? ncl[c0].pop[k0][jdx].even : ncl[c0].pop[k0][jdx].odd;
+      const char *lpopDiagnostic = std::getenv("CGMF_G2_LPOP_WRITE_DIAGNOSTIC");
+      if (lpopDiagnostic && *lpopDiagnostic && !std::isfinite(pop)) {
+        std::cerr << std::setprecision(17)
+                  << "[G2 NONFINITE POP INPUT] Z=" << ncl[c0].za.getZ()
+                  << " A=" << ncl[c0].za.getA() << " k=" << k0
+                  << " spin_index=" << jdx << " parity=" << p0
+                  << " pop=" << pop << std::endl;
+      }
       if( pop==0.0 ) continue;
       
       double tsum=0.0;
       
       /*** Sum over gamma and particle decay */
       tsum  = specTransmissionSum(sumall,tstat,k0,p0,j0,tg,tc,td,0.0,&ncl[c0],spc);
+      if (lpopDiagnostic && *lpopDiagnostic &&
+          (!std::isfinite(pop) || !std::isfinite(tsum))) {
+        std::cerr << std::setprecision(17)
+                  << "[G2 NONFINITE TRANSMISSION SUM] Z=" << ncl[c0].za.getZ()
+                  << " A=" << ncl[c0].za.getA() << " k=" << k0
+                  << " spin_index=" << jdx << " parity=" << p0
+                  << " pop=" << pop << " tsum=" << tsum << std::endl;
+      }
       
       /*** If no transition, add population to g.s */
       if(tsum==0.0 && pop>0.0){
@@ -306,6 +323,14 @@ void    specCompoundDecay(int c0, int k0, Transmission *tc, Transmission *td,
       
       /*** Population add to each resudual CN */
       double dp = (tsum == 0.0) ? 0.0 : pop/tsum;
+      if (lpopDiagnostic && *lpopDiagnostic && !std::isfinite(dp)) {
+        std::cerr << std::setprecision(17)
+                  << "[G2 NONFINITE NORMALIZED POP] Z=" << ncl[c0].za.getZ()
+                  << " A=" << ncl[c0].za.getA() << " k=" << k0
+                  << " spin_index=" << jdx << " parity=" << p0
+                  << " pop=" << pop << " tsum=" << tsum << " dp=" << dp
+                  << std::endl;
+      }
       specTransmissionSum(hauser,tstat,k0,p0,j0,tg,tc,td,dp,&ncl[c0],spc);
     }
   }
