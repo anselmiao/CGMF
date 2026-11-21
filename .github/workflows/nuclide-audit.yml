@@ -8,6 +8,7 @@ on:
       - "scripts/audit_nuclide_level_coverage.py"
       - "scripts/validate_nuclide_spin_admission.py"
       - "scripts/audit_i136_discrete_baseline.py"
+      - "scripts/audit_discrete_level_quantum_numbers.py"
       - "tests/**"
       - ".github/workflows/nuclide-audit.yml"
   pull_request:
@@ -16,6 +17,8 @@ on:
     paths:
       - "scripts/audit_nuclide_level_coverage.py"
       - "scripts/validate_nuclide_spin_admission.py"
+      - "scripts/audit_i136_discrete_baseline.py"
+      - "scripts/audit_discrete_level_quantum_numbers.py"
       - "tests/**"
       - ".github/workflows/nuclide-audit.yml"
 
@@ -35,6 +38,7 @@ jobs:
           python -m py_compile scripts/audit_nuclide_level_coverage.py
           python -m py_compile scripts/validate_nuclide_spin_admission.py
           python -m py_compile scripts/audit_i136_discrete_baseline.py
+          python -m py_compile scripts/audit_discrete_level_quantum_numbers.py
       - name: Run nuclide audit unit tests
         run: python -m unittest discover -s tests -p "test_*.py" -v
 
@@ -62,3 +66,32 @@ jobs:
           python scripts/audit_i136_discrete_baseline.py \
             --ripl data/ripl3-levels.dat \
             --cgmf data/discreteLevels.dat
+
+      - name: Audit the complete CGMF discrete-level quantum-number table
+        run: |
+          python scripts/audit_discrete_level_quantum_numbers.py \
+            data/discreteLevels.dat \
+            --output "$RUNNER_TEMP/discrete-level-quantum-number-audit.json"
+          python - <<'PY'
+          import json, os
+          path = os.path.join(os.environ["RUNNER_TEMP"], "discrete-level-quantum-number-audit.json")
+          with open(path, encoding="utf-8") as f:
+              report = json.load(f)
+          expected = {
+              "nuclei": 3351,
+              "levels": 45697,
+              "spin_lattice_violations": 114,
+              "spin_lattice_violating_nuclides": 54,
+              "ground_state_spin_lattice_violations": 15,
+              "excited_state_spin_lattice_violations": 99,
+              "invalid_parity_records": 3,
+          }
+          assert report["source_sha256"] == "c79679e4247ddf69e3766ccce0b3177fcb7b253e26fd50ff621d2721d023c80e"
+          assert report["counts"] == {
+              **expected,
+              "missing_or_negative_spin": 0,
+          }, report["counts"]
+          print("Frozen discrete-level audit baseline verified:")
+          print(json.dumps(report["counts"], sort_keys=True))
+          print("Known data anomalies are recorded, not silently repaired.")
+          PY
